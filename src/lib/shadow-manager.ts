@@ -219,17 +219,11 @@ function patchCanvasTextureForShadeMap(map: MapLibreMap): void {
   }) as MapLibreMap['addSource'];
 }
 
+const DEFAULT_SHADEMAP_KEY =
+  'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InRwcGlvdHJvd3NraUBzaGFkZW1hcC5hcHAiLCJjcmVhdGVkIjoxNjYyNDkzMDY2Nzk0LCJpYXQiOjE2NjI0OTMwNjZ9.ovCrLTYsdKFTF6TW3DuODxCaAtGQ3qhcmqj3DWcol5g';
+
 function getShadeMapKey(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SHADEMAP_KEY;
-  if (fromEnv) return fromEnv;
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      // Public demo key shipped in mapbox-gl-shadow-simulator examples (localhost is free).
-      return 'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6InRwcGlvdHJvd3NraUBzaGFkZW1hcC5hcHAiLCJjcmVhdGVkIjoxNjYyNDkzMDY2Nzk0LCJpYXQiOjE2NjI0OTMwNjZ9.ovCrLTYsdKFTF6TW3DuODxCaAtGQ3qhcmqj3DWcol5g';
-    }
-  }
-  return '';
+  return process.env.NEXT_PUBLIC_SHADEMAP_KEY || DEFAULT_SHADEMAP_KEY;
 }
 
 export class ShadowManager {
