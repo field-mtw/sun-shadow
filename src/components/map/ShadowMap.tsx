@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import { Map, NavigationControl, GeolocateControl } from 'maplibre-gl';
+import type { MapOptions } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface ShadowMapProps {
@@ -23,7 +24,7 @@ const combineDateAndTime = (date: Date, time: Date): Date => {
 
 const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapReady }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<Map | null>(null);
   const shadeMapRef = useRef<any>(null);
   const initializedRef = useRef(false);
 
@@ -34,13 +35,14 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
     },
   }));
 
-  const initShadowSimulator = useCallback((map: maplibregl.Map) => {
+  const initShadowSimulator = useCallback((map: Map) => {
     const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
-    
+
     try {
-      // Dynamic import to avoid SSR issues
+      // Dynamic require to avoid SSR issues with mapbox-gl-shadow-simulator
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const ShadeMap = require('mapbox-gl-shadow-simulator').default || require('mapbox-gl-shadow-simulator');
-      
+
       const shadeMap = new ShadeMap({
         date: combineDateAndTime(date, time),
         color: '#01112f',
@@ -60,7 +62,6 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
       console.log('[SunShadow] Shadow simulator initialized');
     } catch (error) {
       console.warn('[SunShadow] Shadow simulator failed to initialize:', error);
-      // Map still works without shadows — not a critical failure
     }
   }, [date, time]);
 
@@ -70,50 +71,48 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
 
     const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
 
-    const map = new maplibregl.Map({
+    console.log('[SunShadow] Initializing map with key:', MAPTILER_KEY ? `${MAPTILER_KEY.slice(0, 4)}...` : 'MISSING');
+
+    const map = new Map({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/outdoor-v2/style.json?key=${MAPTILER_KEY}`,
       center: [100.5018, 13.7563],
       zoom: 14,
       pitch: 0,
       canvasContextAttributes: { preserveDrawingBuffer: true },
-    } as maplibregl.MapOptions);
+    });
 
     mapRef.current = map;
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new NavigationControl(), 'top-right');
     map.addControl(
-      new maplibregl.GeolocateControl({
+      new GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
       }),
       'top-right'
     );
 
-    // Mark map as ready as soon as tiles load — don't wait for shadow simulator
     map.on('load', () => {
-      console.log('[SunShadow] Map loaded');
+      console.log('[SunShadow] Map loaded successfully');
       onMapReady();
-      // Initialize shadow simulator after map is ready (non-blocking)
       initShadowSimulator(map);
     });
 
-    // Fallback: if map doesn't fire 'load' within 10s, mark ready anyway
+    map.on('error', (e) => {
+      console.error('[SunShadow] Map error:', e);
+    });
+
+    // Fallback: mark ready after 10s even if load event doesn't fire
     const fallbackTimer = setTimeout(() => {
-      if (!shadeMapRef.current) {
-        console.warn('[SunShadow] Map load timeout, marking ready anyway');
-        onMapReady();
-      }
+      console.warn('[SunShadow] Map load timeout — marking ready anyway');
+      onMapReady();
     }, 10000);
 
     return () => {
       clearTimeout(fallbackTimer);
       if (shadeMapRef.current) {
-        try {
-          shadeMapRef.current.remove();
-        } catch (e) {
-          // ignore cleanup errors
-        }
+        try { shadeMapRef.current.remove(); } catch (_) { /* ignore */ }
       }
       map.remove();
       mapRef.current = null;
