@@ -6,7 +6,8 @@
   "header": {
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
-    "language": "Language"
+    "language": "Language",
+    "toggleTheme": "Toggle theme"
   },
   "search": {
     "placeholder": "Search location...",
@@ -16,6 +17,7 @@
   },
   "date": {
     "title": "Date",
+    "selectDate": "Select Date",
     "today": "Today",
     "tomorrow": "Tomorrow",
     "summerSolstice": "Summer Solstice",

@@ -6,7 +6,8 @@
   "header": {
     "darkMode": "โหมดมืด",
     "lightMode": "โหมดสว่าง",
-    "language": "ภาษา"
+    "language": "ภาษา",
+    "toggleTheme": "สลับธีม"
   },
   "search": {
     "placeholder": "ค้นหาสถานที่...",
@@ -16,6 +17,7 @@
   },
   "date": {
     "title": "วันที่",
+    "selectDate": "เลือกวันที่",
     "today": "วันนี้",
     "tomorrow": "พรุ่งนี้",
     "summerSolstice": "ครีษมายัน",
