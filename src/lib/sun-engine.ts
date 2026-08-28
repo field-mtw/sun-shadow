@@ -1,5 +1,5 @@
 import * as SunCalc from 'suncalc';
-import type { SunPosition, SunTimes } from '../types';
+import type { SkyLighting, SunPosition, SunTimes } from '../types';
 import { WIND_DIRECTIONS } from './constants';
 
 /**
@@ -94,4 +94,86 @@ export function clampTimeToSunWindow(time: Date, sunrise: Date, sunset: Date): D
 export function isGoldenHour(date: Date, lat: number, lng: number): boolean {
   const pos = getSunPosition(date, lat, lng);
   return pos.altitudeDeg >= -4 && pos.altitudeDeg <= 6;
+}
+
+export function getMoonPosition(date: Date, lat: number, lng: number): {
+  compassAzimuthDeg: number;
+  altitudeDeg: number;
+  fraction: number;
+  isUp: boolean;
+} {
+  const position = SunCalc.getMoonPosition(date, lat, lng);
+  const illumination = SunCalc.getMoonIllumination(date);
+  const compassAzimuthDeg = ((position.azimuth % 360) + 360) % 360;
+  const altitudeDeg = position.altitude;
+  return {
+    compassAzimuthDeg,
+    altitudeDeg,
+    fraction: illumination.fraction,
+    isUp: altitudeDeg > 0,
+  };
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+const SUN_SHADOW_RGB: [number, number, number] = [0.004, 0.067, 0.184];
+const WARM_SHADOW_RGB: [number, number, number] = [0.09, 0.06, 0.05];
+const MOON_SHADOW_RGB: [number, number, number] = [0.03, 0.07, 0.14];
+
+/**
+ * Lighting + shadow source for a moment in time.
+ * Day/golden hour: sun umbra. Twilight: long sun umbra fading out.
+ * Night: faint moon umbra when the moon is up, otherwise ambient darkness only.
+ */
+export function getSkyLighting(date: Date, lat: number, lng: number): SkyLighting {
+  const sun = getSunPosition(date, lat, lng);
+  const moon = getMoonPosition(date, lat, lng);
+  const alt = sun.altitudeDeg;
+
+  let period: SkyLighting['period'];
+  if (alt >= 8) period = 'day';
+  else if (alt >= 0) period = 'goldenHour';
+  else if (alt >= -6) period = 'twilight';
+  else if (moon.isUp && moon.altitudeDeg > 4 && moon.fraction > 0.12) period = 'moonlight';
+  else period = 'night';
+
+  const nightAmount =
+    alt >= 8 ? 0
+    : alt >= 0 ? 0.12 * (1 - alt / 8)
+    : alt >= -6 ? 0.12 + 0.42 * ((-alt) / 6)
+    : 0.54 + 0.28 * clamp01((-6 - alt) / 12);
+
+  let cast: SkyLighting['cast'];
+  if (alt >= -6) {
+    const strength = alt >= 0 ? 1 : clamp01((alt + 6) / 6);
+    const warm = alt < 12;
+    cast = {
+      kind: 'sun',
+      compassAzimuthDeg: sun.compassAzimuthDeg,
+      altitudeDeg: alt >= 0 ? alt : 3.6,
+      strength,
+      rgb: warm ? WARM_SHADOW_RGB : SUN_SHADOW_RGB,
+    };
+  } else if (moon.altitudeDeg > 2 && moon.fraction > 0.12) {
+    const moonLift = clamp01((moon.altitudeDeg - 2) / 38);
+    cast = {
+      kind: 'moon',
+      compassAzimuthDeg: moon.compassAzimuthDeg,
+      altitudeDeg: Math.max(7, moon.altitudeDeg),
+      strength: 0.22 + 0.5 * moon.fraction * moonLift,
+      rgb: MOON_SHADOW_RGB,
+    };
+  } else {
+    cast = {
+      kind: 'none',
+      compassAzimuthDeg: sun.compassAzimuthDeg,
+      altitudeDeg: 0,
+      strength: 0,
+      rgb: SUN_SHADOW_RGB,
+    };
+  }
+
+  return { period, sun, moon, nightAmount, cast };
 }

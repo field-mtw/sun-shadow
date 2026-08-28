@@ -1,11 +1,12 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Sunrise, Sunset } from 'lucide-react';
+import { Moon, Sunrise, Sunset } from 'lucide-react';
 import { compassFromDeg, formatTime } from '@/lib/sun-engine';
 import { useSunPosition } from '@/hooks/useSunPosition';
 import StatTile from '@/components/ui/StatTile';
 import SunMark from '@/components/icons/SunMark';
+import { cn } from '@/lib/cn';
 
 interface SunInfoPanelProps {
   date: Date;
@@ -17,7 +18,7 @@ interface SunInfoPanelProps {
 export default function SunInfoPanel({ date, time, lat, lng }: SunInfoPanelProps) {
   const t = useTranslations('sun');
   const tDir = useTranslations('directions');
-  const { position, times, dayLength, isGoldenHour } = useSunPosition(date, time, lat, lng);
+  const { position, times, dayLength, sky } = useSunPosition(date, time, lat, lng);
   const compass = compassFromDeg(position.compassAzimuthDeg);
   const hours = Math.floor(dayLength);
   const minutes = Math.round((dayLength - hours) * 60);
@@ -27,10 +28,21 @@ export default function SunInfoPanel({ date, time, lat, lng }: SunInfoPanelProps
 
   return (
     <div className="mb-2">
-      {isGoldenHour && (
-        <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-chip)] bg-[var(--accent-sun-soft)] px-3 py-2 text-xs font-medium text-sun-text">
-          <SunMark size={14} />
-          {t('goldenHour')}
+      {sky.period !== 'day' && (
+        <div
+          className={cn(
+            'mb-3 flex items-center gap-2 rounded-[var(--radius-chip)] px-3 py-2 text-xs font-medium',
+            sky.period === 'moonlight' || sky.period === 'night'
+              ? 'bg-[var(--accent-tide-soft)] text-tide'
+              : 'bg-[var(--accent-sun-soft)] text-sun-text',
+          )}
+        >
+          {sky.period === 'moonlight' || sky.period === 'night' ? (
+            <Moon size={14} strokeWidth={2} />
+          ) : (
+            <SunMark size={14} />
+          )}
+          {t(`period.${sky.period}`)}
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">

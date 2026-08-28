@@ -8,6 +8,29 @@ export interface SunPosition {
   isNight: boolean;
 }
 
+export type SkyPeriod = 'day' | 'goldenHour' | 'twilight' | 'night' | 'moonlight';
+
+export interface SkyCast {
+  kind: 'sun' | 'moon' | 'none';
+  compassAzimuthDeg: number;
+  altitudeDeg: number;
+  strength: number;
+  rgb: [number, number, number];
+}
+
+export interface SkyLighting {
+  period: SkyPeriod;
+  sun: SunPosition;
+  moon: {
+    compassAzimuthDeg: number;
+    altitudeDeg: number;
+    fraction: number;
+    isUp: boolean;
+  };
+  nightAmount: number;
+  cast: SkyCast;
+}
+
 export interface SunTimes {
   sunrise: Date;
   sunset: Date;

@@ -1,6 +1,6 @@
 export const DEFAULT_CENTER: [number, number] = [100.5018, 13.7563]; // Bangkok
 export const DEFAULT_ZOOM = 14;
-export const SHADOW_COLOR = '#01112f';
+export const SHADOW_COLOR = '#010d24';
 export const SHADOW_OPACITY = 0.7;
 
 export const PRESET_LOCATIONS = [
@@ -20,3 +20,14 @@ export const OPEN_METEO_MARINE_URL = 'https://marine-api.open-meteo.com/v1/marin
 
 export const getMapTilerStyleUrl = (apiKey: string, style = 'outdoor-v2') =>
   `https://api.maptiler.com/maps/${style}/style.json?key=${apiKey}`;
+
+/** AWS Open Data Terrain Tiles (Terrarium). Proxied locally to avoid S3 CORS. */
+export const TERRARIUM_SOURCE_ID = 'aws-terrarium';
+export const TERRARIUM_TILE_URL = '/api/terrarium/{z}/{x}/{y}';
+export const TERRARIUM_MAXZOOM = 15;
+
+/** Overture Maps buildings (polygons + height). Proxied for byte-range PMTiles. */
+export const OVERTURE_BUILDINGS_SOURCE_ID = 'overture-buildings';
+export const OVERTURE_BUILDINGS_LAYER = 'building';
+export const OVERTURE_BUILDINGS_PMTILES_URL = 'pmtiles:///api/overture-buildings';
+export const METERS_PER_FLOOR = 3.5;

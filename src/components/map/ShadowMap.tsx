@@ -9,6 +9,7 @@ import {
   getMapTilerStyleUrl,
 } from '@/lib/constants';
 import { ShadowManager } from '@/lib/shadow-manager';
+import { registerPmtilesProtocol } from '@/lib/pmtiles-protocol';
 import { combineDateAndTime } from '@/lib/sun-engine';
 import { FullscreenControl } from '@/components/map/MapControls';
 
@@ -17,6 +18,7 @@ if (typeof window !== 'undefined') {
   // relative path. Next.js/Turbopack cannot emit that sibling, so both files
   // are copied to /public/maplibre and loaded from there.
   setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
+  registerPmtilesProtocol();
 }
 
 interface ShadowMapProps {
@@ -99,13 +101,13 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
       zoom: DEFAULT_ZOOM,
       pitch: 0,
       attributionControl: false,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
+      canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
       locale: mapLocale,
     });
 
     mapRef.current = map;
 
-    map.addControl(new NavigationControl(), 'top-right');
+    map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(
       new GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
@@ -130,6 +132,9 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
     map.on('load', () => {
       map.resize();
       shadowManager.initialize(map, datetimeRef.current);
+      requestAnimationFrame(() => {
+        map.resize();
+      });
       onMapReady();
     });
 

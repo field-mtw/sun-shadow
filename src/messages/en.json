@@ -43,7 +43,14 @@
   "time": {
     "title": "Time of Day",
     "sunrise": "Sunrise",
-    "sunset": "Sunset"
+    "sunset": "Sunset",
+    "period": {
+      "day": "Daylight",
+      "goldenHour": "Golden hour",
+      "twilight": "Twilight",
+      "night": "Night",
+      "moonlight": "Moonlight"
+    }
   },
   "sun": {
     "title": "Sun Info",
@@ -54,7 +61,14 @@
     "azimuth": "Azimuth",
     "dayLength": "Day Length",
     "dayLengthFormat": "{hours}h {minutes}m",
-    "goldenHour": "Golden Hour"
+    "goldenHour": "Golden Hour",
+    "period": {
+      "day": "Daylight",
+      "goldenHour": "Golden hour",
+      "twilight": "Twilight",
+      "night": "Night — no hard shadows",
+      "moonlight": "Moonlight shadows"
+    }
   },
   "weather": {
     "title": "Weather & Climate",

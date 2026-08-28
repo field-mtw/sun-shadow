@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import Header from '@/components/layout/Header';
 import { DEFAULT_CENTER } from '@/lib/constants';
-import { clampTimeToSunWindow, combineDateAndTime, formatTime, getSunTimes } from '@/lib/sun-engine';
+import { combineDateAndTime, formatTime, getSkyLighting, getSunTimes } from '@/lib/sun-engine';
 import Sidebar from '@/components/layout/Sidebar';
 import SidebarContent from '@/components/layout/SidebarContent';
 import TimeBar from '@/components/controls/TimeBar';
@@ -72,6 +72,10 @@ export default function Home() {
     () => getSunTimes(selectedDate, location.lat, location.lng),
     [selectedDate, location.lat, location.lng],
   );
+  const sky = useMemo(
+    () => getSkyLighting(combineDateAndTime(selectedDate, selectedTime), location.lat, location.lng),
+    [selectedDate, selectedTime, location.lat, location.lng],
+  );
   const { climateData, windRoseData, isLoading: weatherLoading } = useWeatherData(
     location.lat,
     location.lng,
@@ -94,17 +98,14 @@ export default function Home() {
   );
 
   const handleDateChange = (nextDate: Date) => {
-    const times = getSunTimes(nextDate, location.lat, location.lng);
     setSelectedDate(nextDate);
-    setSelectedTime(clampTimeToSunWindow(combineDateAndTime(nextDate, selectedTime), times.sunrise, times.sunset));
+    setSelectedTime(combineDateAndTime(nextDate, selectedTime));
     setSelectedMonth(nextDate.getMonth());
   };
 
   const handleSelectLocation = (next: { lat: number; lng: number; name: string }) => {
     setLocation(next);
     mapRef.current?.flyTo(next.lng, next.lat);
-    const times = getSunTimes(selectedDate, next.lat, next.lng);
-    setSelectedTime(clampTimeToSunWindow(selectedTime, times.sunrise, times.sunset));
   };
 
   const handleMapLocationChange = useCallback((next: { lat: number; lng: number }) => {
@@ -143,6 +144,7 @@ export default function Home() {
       onChange={setSelectedTime}
       sunrise={sunTimes.sunrise}
       sunset={sunTimes.sunset}
+      period={sky.period}
     />
   );
 
@@ -224,6 +226,7 @@ export default function Home() {
                 onChange={setSelectedTime}
                 sunrise={sunTimes.sunrise}
                 sunset={sunTimes.sunset}
+                period={sky.period}
                 hideReadout
               />
             }

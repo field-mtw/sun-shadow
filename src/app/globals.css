@@ -239,6 +239,26 @@ main[data-sheet='expanded'] .maplibregl-ctrl-top-right {
   box-shadow: var(--shadow-hud);
 }
 
+.time-range[data-sky='twilight']::-webkit-slider-thumb,
+.time-range[data-sky='goldenHour']::-webkit-slider-thumb {
+  border-color: #fb923c;
+}
+
+.time-range[data-sky='night']::-webkit-slider-thumb,
+.time-range[data-sky='moonlight']::-webkit-slider-thumb {
+  border-color: #93c5fd;
+}
+
+.time-range[data-sky='twilight']::-moz-range-thumb,
+.time-range[data-sky='goldenHour']::-moz-range-thumb {
+  border-color: #fb923c;
+}
+
+.time-range[data-sky='night']::-moz-range-thumb,
+.time-range[data-sky='moonlight']::-moz-range-thumb {
+  border-color: #93c5fd;
+}
+
 .date-field::-webkit-calendar-picker-indicator {
   opacity: 0.55;
   cursor: pointer;
