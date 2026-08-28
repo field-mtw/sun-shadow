@@ -1,71 +1,239 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { startOfDay } from 'date-fns';
+import { useTranslations } from 'next-intl';
 import Header from '@/components/layout/Header';
+import { DEFAULT_CENTER } from '@/lib/constants';
+import { clampTimeToSunWindow, combineDateAndTime, formatTime, getSunTimes } from '@/lib/sun-engine';
 import Sidebar from '@/components/layout/Sidebar';
-import TimeSlider from '@/components/controls/TimeSlider';
-import PlaybackControls from '@/components/controls/PlaybackControls';
-import ExportButton from '@/components/export/ExportButton';
+import SidebarContent from '@/components/layout/SidebarContent';
+import TimeBar from '@/components/controls/TimeBar';
 import LoadingOverlay from '@/components/ui/LoadingOverlay';
+import BottomSheet from '@/components/ui/BottomSheet';
+import Dock from '@/components/ui/Dock';
+import SunMark from '@/components/icons/SunMark';
+import WindMark from '@/components/icons/WindMark';
+import TideMark from '@/components/icons/TideMark';
+import { useWeatherData } from '@/hooks/useWeatherData';
+import { useTideData } from '@/hooks/useTideData';
+import { deriveMapWind } from '@/lib/wind-vector';
+import WindFlowOverlay from '@/components/map/WindFlowOverlay';
+import type { ShadowMapRef } from '@/components/map/ShadowMap';
+import type { SidebarTab } from '@/components/layout/SidebarContent';
 
 const ShadowMap = dynamic(() => import('@/components/map/ShadowMap'), { ssr: false });
 
+function daytimeOrNoon(date: Date, lat: number, lng: number): Date {
+  const times = getSunTimes(date, lat, lng);
+  if (date >= times.sunrise && date <= times.sunset) return date;
+  return times.solarNoon;
+}
+
 export default function Home() {
+  const mapRef = useRef<ShadowMapRef>(null);
+  const tHeader = useTranslations('header');
+  const tSide = useTranslations('sidebar');
+  const tLocations = useTranslations('locations');
+  const tMap = useTranslations('map');
+  const [location, setLocation] = useState({
+    lat: DEFAULT_CENTER[1],
+    lng: DEFAULT_CENTER[0],
+    name: tLocations('bangkok'),
+  });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedTime, setSelectedTime] = useState<Date>(new Date());
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [selectedTime, setSelectedTime] = useState<Date>(() =>
+    daytimeOrNoon(new Date(), DEFAULT_CENTER[1], DEFAULT_CENTER[0]),
+  );
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('sun');
+  const [windEmphasized, setWindEmphasized] = useState(false);
+
+  useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 767px)');
+    const wide = window.matchMedia('(min-width: 1280px)');
+    const applyMobile = () => setIsMobile(mobile.matches);
+    const frame = requestAnimationFrame(() => {
+      applyMobile();
+      if (wide.matches) setIsSidebarOpen(true);
+    });
+    mobile.addEventListener('change', applyMobile);
+    return () => {
+      cancelAnimationFrame(frame);
+      mobile.removeEventListener('change', applyMobile);
+    };
+  }, []);
+
+  const sunTimes = useMemo(
+    () => getSunTimes(selectedDate, location.lat, location.lng),
+    [selectedDate, location.lat, location.lng],
+  );
+  const { climateData, windRoseData, isLoading: weatherLoading } = useWeatherData(
+    location.lat,
+    location.lng,
+    selectedMonth,
+    sidebarTab === 'wind',
+  );
+  const tideData = useTideData(
+    location.lat,
+    location.lng,
+    selectedDate,
+    selectedTime,
+    sidebarTab === 'tide',
+  );
+  const mapWind = useMemo(
+    () => deriveMapWind(
+      climateData?.find((row) => row.month === selectedMonth + 1),
+      windRoseData,
+    ),
+    [climateData, windRoseData, selectedMonth],
+  );
+
+  const handleDateChange = (nextDate: Date) => {
+    const times = getSunTimes(nextDate, location.lat, location.lng);
+    setSelectedDate(nextDate);
+    setSelectedTime(clampTimeToSunWindow(combineDateAndTime(nextDate, selectedTime), times.sunrise, times.sunset));
+    setSelectedMonth(nextDate.getMonth());
+  };
+
+  const handleSelectLocation = (next: { lat: number; lng: number; name: string }) => {
+    setLocation(next);
+    mapRef.current?.flyTo(next.lng, next.lat);
+    const times = getSunTimes(selectedDate, next.lat, next.lng);
+    setSelectedTime(clampTimeToSunWindow(selectedTime, times.sunrise, times.sunset));
+  };
+
+  const handleMapLocationChange = useCallback((next: { lat: number; lng: number }) => {
+    setLocation((prev) => ({ ...prev, lat: next.lat, lng: next.lng }));
+  }, []);
+
+  const inspector = (
+    <SidebarContent
+      locationName={location.name}
+      lat={location.lat}
+      lng={location.lng}
+      date={selectedDate}
+      time={selectedTime}
+      month={selectedMonth}
+      tab={sidebarTab}
+      onTabChange={setSidebarTab}
+      onSelectLocation={handleSelectLocation}
+      onDateChange={handleDateChange}
+      onMonthChange={setSelectedMonth}
+      climateData={climateData}
+      windRoseData={windRoseData}
+      weatherLoading={weatherLoading}
+      tideData={tideData}
+      tideLoading={tideData.isLoading}
+      hideSearch={!isMobile}
+      wind={mapWind}
+      windEmphasized={windEmphasized}
+      onToggleWindEmphasis={() => setWindEmphasized((value) => !value)}
+    />
+  );
+
+  const timeBar = (
+    <TimeBar
+      mapRef={mapRef}
+      value={selectedTime}
+      onChange={setSelectedTime}
+      sunrise={sunTimes.sunrise}
+      sunset={sunTimes.sunset}
+    />
+  );
+
+  const mapLocale = useMemo(
+    () => ({
+      'NavigationControl.ZoomIn': tMap('zoomIn'),
+      'NavigationControl.ZoomOut': tMap('zoomOut'),
+      'NavigationControl.ResetBearing': tMap('resetBearing'),
+      'GeolocateControl.FindMyLocation': tMap('findMyLocation'),
+      'GeolocateControl.LocationNotAvailable': tMap('locationNotAvailable'),
+    }),
+    [tMap],
+  );
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
-      <Header />
-      
-      <div className="relative flex flex-1 overflow-hidden">
-        <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)}>
-          {/* Sidebar content here */}
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-4">Controls</h2>
-            {/* Add DatePicker, SunInfoPanel, WeatherPanel here */}
-          </div>
-        </Sidebar>
+    <main
+      className="relative h-dvh overflow-hidden bg-map-void"
+      data-inspector={isMobile ? 'hidden' : isSidebarOpen ? 'expanded' : 'collapsed'}
+      data-sheet={isSheetOpen ? 'expanded' : 'collapsed'}
+      style={{ ['--hud-left' as string]: isMobile ? '0px' : isSidebarOpen ? '352px' : '60px' }}
+    >
+      <ShadowMap
+        ref={mapRef}
+        date={selectedDate}
+        time={selectedTime}
+        onMapReady={() => setIsMapReady(true)}
+        onLocationChange={handleMapLocationChange}
+        enterLabel={tHeader('fullscreen')}
+        exitLabel={tHeader('exitFullscreen')}
+        mapLocale={mapLocale}
+      />
 
-        <div className="relative flex-1">
-          <LoadingOverlay isLoading={!isMapReady} />
-          
-          <ShadowMap 
-            date={selectedDate} 
-            time={selectedTime} 
-            onMapReady={() => setIsMapReady(true)} 
-          />
+      <WindFlowOverlay
+        visible={sidebarTab === 'wind'}
+        wind={mapWind}
+        month={selectedMonth}
+        emphasized={windEmphasized}
+        project={(lng, lat) => mapRef.current?.project(lng, lat) ?? null}
+        getBounds={() => mapRef.current?.getBounds() ?? null}
+        getZoom={() => mapRef.current?.getZoom() ?? 0}
+        subscribeView={(cb) => mapRef.current?.subscribeView(cb) ?? (() => {})}
+      />
 
-          {/* Floating UI */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel p-4 rounded-xl flex flex-col gap-4 w-11/12 max-w-2xl shadow-lg z-10">
-            <TimeSlider 
-              value={selectedTime} 
-              onChange={setSelectedTime} 
-              sunrise={startOfDay(selectedDate)} 
-              sunset={startOfDay(selectedDate)} // placeholder
-            />
-            
-            <div className="flex justify-between items-center">
-              <PlaybackControls 
-                isPlaying={isPlaying}
-                onToggle={() => setIsPlaying(!isPlaying)}
-                speed={playbackSpeed}
-                onSpeedChange={setPlaybackSpeed}
-                onStepForward={() => {}}
-                onStepBackward={() => {}}
+      <div className="hud pointer-events-none absolute inset-0 z-[var(--z-hud)]">
+        <Header locationName={location.name} onSelectLocation={handleSelectLocation} />
+
+        {!isMobile && (
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen((open) => !open)}
+            tab={sidebarTab}
+            onTabChange={setSidebarTab}
+          >
+            {inspector}
+          </Sidebar>
+        )}
+
+        {!isMobile && <Dock>{timeBar}</Dock>}
+
+        {isMobile && (
+          <BottomSheet
+            isOpen={isSheetOpen}
+            onToggle={() => setIsSheetOpen((open) => !open)}
+            peekLabel={`${sidebarTab === 'sun' ? tSide('sunTab') : sidebarTab === 'wind' ? tSide('windTab') : tSide('tideTab')} · ${location.name}`}
+            peekIcon={
+              sidebarTab === 'sun' ? (
+                <SunMark size={18} className="text-sun-text" />
+              ) : sidebarTab === 'wind' ? (
+                <WindMark size={18} className="text-wind" />
+              ) : (
+                <TideMark size={18} className="text-tide" />
+              )
+            }
+            peekMeta={formatTime(selectedTime)}
+            footer={
+              <TimeBar
+                mapRef={mapRef}
+                value={selectedTime}
+                onChange={setSelectedTime}
+                sunrise={sunTimes.sunrise}
+                sunset={sunTimes.sunset}
+                hideReadout
               />
-              <ExportButton mapRef={null} />
-            </div>
-          </div>
-        </div>
+            }
+          >
+            {inspector}
+          </BottomSheet>
+        )}
       </div>
+
+      <LoadingOverlay isLoading={!isMapReady} />
     </main>
   );
 }

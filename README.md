@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☀️ Solaria Scope
 
-## Getting Started
+> **Interactive 3D Sun, Wind & Tide Simulation on Topographic Maps**
 
-First, run the development server:
+Have you ever wondered what time the morning sun actually hits your future balcony? How long the shadow of that mountain behind your plot stretches in December? Which direction the monsoon breeze flows across your neighborhood, or when high tide peaks before heading out to the beach?
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Solaria Scope** was born to answer those questions on one interactive map. It combines terrain elevation, astronomical solar algorithms, historical wind data, and marine tidal modeling into a fast, fluid 3D web experience.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🌟 What You Can Do with Solaria Scope
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Solaria Scope organizes environmental data into three natural elements:
 
-## Learn More
+### ☀️ 1. Sun & 3D Shadow Simulation
+* **Real-time 3D Terrain Shadows**: Cast accurate mountain, valley, and building shadows across any coordinate on Earth using Digital Elevation Models (DEM).
+* **Time-of-Day Slider**: Drag the time bar to watch shadows glide naturally across the land from dawn till dusk.
+* **Solar Metrics**: View instant sun altitude, compass azimuth, day length, and exact golden hour timestamps.
+* **Solstice Presets**: Jump directly to the longest day of the year (Summer Solstice) or shortest day (Winter Solstice) with a single click.
 
-To learn more about Next.js, take a look at the following resources:
+### 💨 2. Wind Flow & Climate Intelligence
+* **Animated Streamlines**: Watch wind currents flow visually over the terrain, adapting in real time to the selected month.
+* **8-Direction Wind Rose**: See which direction the dominant wind blows and its average speed for every month of the year.
+* **Monthly Climate Trends**: Historical monthly temperature ranges (average, high, and low) powered by local climate archives.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🌊 3. Tides & Lunar Marine
+* **24-Hour Tide Curve**: An interactive water-level graph with a live pointer that tracks with your time slider, showing high and low tide peaks with exact meter readings.
+* **Moon & Tidal Phenomena**: Track all 8 lunar phases, illumination percentage, and automatic **Spring Tide** (maximum range) vs. **Neap Tide** (minimal range) detection.
+* **Marine Conditions**: Wave heights, sea surface temperature, ocean current speeds, and moonrise/moonset times.
+* **Inland Smart Notice**: If you select an inland location like Chiang Mai, the app gracefully highlights lunar and astronomical data while explaining coastal limits.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🎯 Who Is This For?
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+* 🏡 **Homebuyers, Renters & Architects**: Check natural light, room shading, and breeze corridors before designing, building, or buying property.
+* ⚡ **Solar Energy & Urban Gardeners**: Find out exactly which rooftop corners or yard patches receive unobstructed sunshine throughout the seasons.
+* ⛺ **Hikers, Campers & Landscape Photographers**: Plan outdoor trips, scout mountain campsites that catch morning warmth, and nail golden hour shots.
+* 🏄 **Surfers, Anglers & Coastal Travelers**: Check water levels, tidal cycles, wave heights, and moon phases for beaches across Thailand and worldwide.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🌐 Dual-Language Experience
+
+Solaria Scope is designed to feel completely native in both **English** and **ไทย (Thai)**. Switch languages anytime directly from the top bar with a single click.
+
+---
+
+*Made with curiosity for geography, light, and natural elements. Enjoy exploring the world around you!*

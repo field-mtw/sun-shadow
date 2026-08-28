@@ -1,13 +1,22 @@
 {
   "app": {
-    "title": "SunShadow",
-    "description": "การจำลองเงาแสงอาทิตย์บนแผนที่ภูมิประเทศ"
+    "title": "Solaria Scope",
+    "description": "การจำลองแดด ลม และน้ำขึ้นน้ำลงบนแผนที่ภูมิประเทศ 3 มิติ"
+  },
+  "sidebar": {
+    "sunTab": "แดด",
+    "windTab": "ลม",
+    "tideTab": "น้ำ"
   },
   "header": {
     "darkMode": "โหมดมืด",
     "lightMode": "โหมดสว่าง",
     "language": "ภาษา",
-    "toggleTheme": "สลับธีม"
+    "toggleTheme": "สลับธีม",
+    "fullscreen": "เต็มจอ",
+    "exitFullscreen": "ออกจากเต็มจอ",
+    "collapsePanel": "ย่อแผง",
+    "expandPanel": "ขยายแผง"
   },
   "search": {
     "placeholder": "ค้นหาสถานที่...",
@@ -15,25 +24,26 @@
     "quickLocations": "สถานที่ยอดนิยม",
     "noResults": "ไม่พบผลการค้นหา"
   },
+  "locations": {
+    "bangkok": "กรุงเทพมหานคร",
+    "chiangMai": "เชียงใหม่",
+    "phuket": "ภูเก็ต",
+    "pattaya": "พัทยา",
+    "khonKaen": "ขอนแก่น",
+    "hatYai": "หาดใหญ่"
+  },
   "date": {
     "title": "วันที่",
     "selectDate": "เลือกวันที่",
     "today": "วันนี้",
     "tomorrow": "พรุ่งนี้",
-    "summerSolstice": "ครีษมายัน",
-    "winterSolstice": "เหมายัน"
+    "summerSolstice": "กลางวันยาวสุด",
+    "winterSolstice": "กลางคืนยาวสุด"
   },
   "time": {
     "title": "ช่วงเวลาของวัน",
     "sunrise": "พระอาทิตย์ขึ้น",
     "sunset": "พระอาทิตย์ตก"
-  },
-  "playback": {
-    "play": "เล่น",
-    "pause": "หยุดชั่วคราว",
-    "speed": "ความเร็ว",
-    "stepForward": "ไปข้างหน้า 15 นาที",
-    "stepBackward": "ย้อนกลับ 15 นาที"
   },
   "sun": {
     "title": "ข้อมูลดวงอาทิตย์",
@@ -43,6 +53,7 @@
     "altitude": "มุมเงย",
     "azimuth": "มุมทิศ",
     "dayLength": "ระยะเวลากลางวัน",
+    "dayLengthFormat": "{hours} ชม. {minutes} นาที",
     "goldenHour": "ช่วงเวลาแสงสีทอง"
   },
   "weather": {
@@ -50,13 +61,56 @@
     "avgTemp": "อุณหภูมิเฉลี่ย",
     "maxTemp": "สูงสุด",
     "minTemp": "ต่ำสุด",
+    "tempRange": "{max}° / {min}°",
     "wind": "ลม",
     "windSpeed": "ความเร็วลม",
     "windDirection": "ทิศทางลม",
     "humidity": "ความชื้น",
     "monthlyAverage": "ค่าเฉลี่ยรายเดือน",
     "dominantWind": "ทิศทางลมหลัก",
-    "windRose": "แผนภูมิลม"
+    "windRose": "แผนภูมิลม",
+    "kmh": "กม./ชม.",
+    "celsius": "°C",
+    "flowHint": "อากาศไหลไปทางนี้",
+    "windClearer": "ชัดขึ้น",
+    "windSofter": "เบาลง"
+  },
+  "tides": {
+    "title": "น้ำขึ้นน้ำลงและทะเล",
+    "currentLevel": "ระดับน้ำปัจจุบัน",
+    "highTide": "น้ำขึ้นสูงสุด",
+    "lowTide": "น้ำลงต่ำสุด",
+    "nextHighTide": "น้ำขึ้นถัดไป",
+    "nextLowTide": "น้ำลงถัดไป",
+    "rising": "กำลังขึ้น",
+    "falling": "กำลังลง",
+    "tideChart": "ระดับน้ำตลอด 24 ชั่วโมง",
+    "waveHeight": "ความสูงคลื่น",
+    "seaTemp": "อุณหภูมิทะเล",
+    "currentSpeed": "กระแสน้ำ",
+    "meters": "ม.",
+    "moonPhase": "ดวงจันทร์และปรากฏการณ์น้ำ",
+    "illumination": "ความสว่าง",
+    "moonrise": "ดวงจันทร์ขึ้น",
+    "moonset": "ดวงจันทร์ตก",
+    "springTide": "น้ำเกิด (ขึ้น-ลงมาก)",
+    "neapTide": "น้ำตาย (ระดับน้ำนิ่ง)",
+    "moderateTide": "น้ำปานกลาง",
+    "springTideDesc": "วันเพ็ญ/เดือนดับ: น้ำขึ้นสูงสุดและลงต่ำสุด",
+    "neapTideDesc": "วันครึ่งดวง: ระดับน้ำเปลี่ยนแปลงน้อยที่สุด",
+    "moderateTideDesc": "ระดับน้ำขึ้นลงตามปกติ",
+    "inlandNotice": "ตำแหน่งนี้อยู่บนแผ่นดิน: ข้อมูลระดับน้ำทะเลจะแสดงผลเฉพาะบริเวณชายฝั่งหรือในทะเล สำหรับข้อมูลดวงจันทร์และน้ำเกิด-น้ำตายแสดงผลตามปกติ",
+    "loading": "กำลังโหลดข้อมูลทะเล...",
+    "phases": {
+      "newMoon": "จันทร์ดับ (แรม 15 ค่ำ)",
+      "waxingCrescent": "จันทร์เสี้ยวข้างขึ้น",
+      "firstQuarter": "ขึ้น 8 ค่ำ",
+      "waxingGibbous": "จันทร์ค่อนดวงข้างขึ้น",
+      "fullMoon": "จันทร์เพ็ญ (ขึ้น 15 ค่ำ)",
+      "waningGibbous": "จันทร์ค่อนดวงข้างแรม",
+      "lastQuarter": "แรม 8 ค่ำ",
+      "waningCrescent": "จันทร์เสี้ยวข้างแรม"
+    }
   },
   "months": {
     "jan": "ม.ค.",
@@ -79,20 +133,39 @@
     "bookmark": "บันทึกบุ๊กมาร์ก",
     "linkCopied": "คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว!",
     "screenshotSaved": "บันทึกภาพหน้าจอแล้ว!",
-    "bookmarkSaved": "บันทึกสถานที่แล้ว!"
+    "bookmarkSaved": "บันทึกสถานที่แล้ว!",
+    "screenshotFailed": "บันทึกภาพหน้าจอไม่สำเร็จ"
   },
   "directions": {
-    "N": "N",
-    "NE": "NE",
-    "E": "E",
-    "SE": "SE",
-    "S": "S",
-    "SW": "SW",
-    "W": "W",
-    "NW": "NW"
+    "N": "เหนือ",
+    "NE": "ตะวันออกเฉียงเหนือ",
+    "E": "ตะวันออก",
+    "SE": "ตะวันออกเฉียงใต้",
+    "S": "ใต้",
+    "SW": "ตะวันตกเฉียงใต้",
+    "W": "ตะวันตก",
+    "NW": "ตะวันตกเฉียงเหนือ"
+  },
+  "directionsShort": {
+    "N": "น.",
+    "NE": "ต.อ.น.",
+    "E": "ต.อ.",
+    "SE": "ต.อ.ต.",
+    "S": "ต.",
+    "SW": "ต.ต.ต.",
+    "W": "ต.ต.",
+    "NW": "ต.ต.น."
+  },
+  "map": {
+    "zoomIn": "ซูมเข้า",
+    "zoomOut": "ซูมออก",
+    "resetBearing": "ลากเพื่อหมุนแผนที่ คลิกเพื่อรีเซ็ตทิศเหนือ",
+    "findMyLocation": "ระบุตำแหน่งของฉัน",
+    "locationNotAvailable": "ไม่สามารถระบุตำแหน่งได้"
   },
   "loading": {
     "map": "กำลังโหลดแผนที่...",
-    "weather": "กำลังโหลดข้อมูลสภาพอากาศ..."
+    "weather": "กำลังโหลดข้อมูลสภาพอากาศ...",
+    "tides": "กำลังโหลดข้อมูลทะเล..."
   }
 }

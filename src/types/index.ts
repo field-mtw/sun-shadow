@@ -1,6 +1,9 @@
 export interface SunPosition {
+  /** Compass azimuth in radians, 0 = north, clockwise. */
   azimuth: number;
+  /** Solar altitude in radians (negative = below horizon). */
   altitude: number;
+  altitudeDeg: number;
   compassAzimuthDeg: number;
   isNight: boolean;
 }
@@ -12,7 +15,6 @@ export interface SunTimes {
   goldenHour: Date;
   dawn: Date;
   dusk: Date;
-  [key: string]: Date; // For other properties returned by SunCalc
 }
 
 export interface MonthlyClimate {
@@ -30,29 +32,60 @@ export interface WindRoseData {
   avgSpeed: number;
 }
 
-export interface MapViewState {
-  center: [number, number];
-  zoom: number;
-  bearing: number;
+export interface DailyClimateSeries {
+  time: string[];
+  temperature_2m_max: (number | null)[];
+  temperature_2m_min: (number | null)[];
+  temperature_2m_mean: (number | null)[];
+  wind_speed_10m_max: (number | null)[];
+  wind_direction_10m_dominant: (number | null)[];
 }
 
-export interface BookmarkLocation {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  zoom: number;
-  createdAt: string;
+export type MoonPhaseKey =
+  | 'newMoon'
+  | 'waxingCrescent'
+  | 'firstQuarter'
+  | 'waxingGibbous'
+  | 'fullMoon'
+  | 'waningGibbous'
+  | 'lastQuarter'
+  | 'waningCrescent';
+
+export type TidalType = 'springTide' | 'neapTide' | 'moderateTide';
+
+export interface MoonInfo {
+  fraction: number;
+  phase: number;
+  phaseKey: MoonPhaseKey;
+  tidalType: TidalType;
+  waxing: boolean;
+  rise: Date | null;
+  set: Date | null;
 }
 
-export interface ExportOptions {
-  format: 'png';
-  includeUI: boolean;
+export interface TideExtreme {
+  type: 'high' | 'low';
+  time: Date;
+  height: number;
 }
 
-export interface AppState {
-  selectedDate: Date;
-  selectedTime: string;
-  location: [number, number];
-  month: number;
+export interface HourlyMarinePoint {
+  time: Date;
+  seaLevelHeight: number | null;
+  waveHeight: number | null;
+  oceanCurrentVelocity: number | null;
+  oceanCurrentDirection: number | null;
+  seaSurfaceTemperature: number | null;
+}
+
+export interface TideData {
+  hasMarineData: boolean;
+  hourlyPoints: HourlyMarinePoint[];
+  extremes: TideExtreme[];
+  currentHeight: number | null;
+  isRising: boolean | null;
+  avgWaveHeight: number | null;
+  avgSeaTemp: number | null;
+  avgCurrentSpeed: number | null;
+  moon: MoonInfo;
 }

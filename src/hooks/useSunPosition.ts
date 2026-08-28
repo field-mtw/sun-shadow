@@ -1,12 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import {
+  combineDateAndTime,
+  formatDayLength,
+  getDayLength,
+  getSunPosition,
+  getSunTimes,
+  isGoldenHour,
+} from '@/lib/sun-engine';
 
-export function useSunPosition(date: Date, lat: number, lng: number) {
-  const [position, setPosition] = useState({ altitude: 0, azimuth: 0 });
-  const [times, setTimes] = useState({ sunrise: new Date(), sunset: new Date(), solarNoon: new Date() });
-  
-  useEffect(() => {
-    // integration with suncalc or sun-engine goes here
-  }, [date, lat, lng]);
-  
-  return { position, times, dayLength: 12, isGoldenHour: false };
+export function useSunPosition(date: Date, time: Date, lat: number, lng: number) {
+  return useMemo(() => {
+    const datetime = combineDateAndTime(date, time);
+    const times = getSunTimes(date, lat, lng);
+    const position = getSunPosition(datetime, lat, lng);
+    const dayLength = getDayLength(date, lat, lng);
+    return {
+      datetime,
+      position,
+      times,
+      dayLength,
+      dayLengthLabel: formatDayLength(dayLength),
+      isGoldenHour: isGoldenHour(datetime, lat, lng),
+    };
+  }, [date, time, lat, lng]);
 }

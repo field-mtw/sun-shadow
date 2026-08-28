@@ -1,42 +1,61 @@
 'use client';
 
+import type { ChangeEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import { formatTime } from '@/lib/sun-engine';
+import { cn } from '@/lib/cn';
 
 interface TimeSliderProps {
   value: Date;
   onChange: (date: Date) => void;
   sunrise: Date;
   sunset: Date;
+  hideReadout?: boolean;
 }
 
-export default function TimeSlider({ value, onChange, sunrise, sunset }: TimeSliderProps) {
-  // Simplified for now
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = new Date(value);
-    newTime.setHours(Math.floor(Number(e.target.value) / 60));
-    newTime.setMinutes(Number(e.target.value) % 60);
-    onChange(newTime);
+const toMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
+
+export default function TimeSlider({ value, onChange, sunrise, sunset, hideReadout = false }: TimeSliderProps) {
+  const t = useTranslations('time');
+  const min = toMinutes(sunrise);
+  const max = Math.max(min + 1, toMinutes(sunset));
+  const minutesSinceMidnight = Math.min(max, Math.max(min, toMinutes(value)));
+  const disabled = sunset.getTime() <= sunrise.getTime();
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const total = Number(e.target.value);
+    const next = new Date(value);
+    next.setHours(Math.floor(total / 60), total % 60, 0, 0);
+    onChange(next);
   };
 
-  const minutesSinceMidnight = value.getHours() * 60 + value.getMinutes();
-
   return (
-    <div className="w-full flex flex-col gap-2">
-      <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400 font-medium">
-        <span>{sunrise.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-          {value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+    <div className={cn('flex min-w-0 flex-1 flex-col gap-2', disabled && 'opacity-40')}>
+      {!hideReadout && (
+        <div className="text-[20px] leading-6 font-semibold tabular-nums text-fg">
+          {formatTime(value)}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <span className="w-10 shrink-0 text-xs font-medium text-fg-muted tabular-nums">
+          {formatTime(sunrise)}
         </span>
-        <span>{sunset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={5}
+          value={minutesSinceMidnight}
+          disabled={disabled}
+          onChange={handleChange}
+          aria-label={t('title')}
+          aria-valuetext={formatTime(value)}
+          className="time-range flex-1"
+        />
+        <span className="w-10 shrink-0 text-right text-xs font-medium text-fg-muted tabular-nums">
+          {formatTime(sunset)}
+        </span>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={1440}
-        value={minutesSinceMidnight}
-        onChange={handleChange}
-        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-amber-500"
-      />
     </div>
   );
 }

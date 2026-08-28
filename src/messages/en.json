@@ -1,19 +1,36 @@
 {
   "app": {
-    "title": "SunShadow",
-    "description": "Sun shadow simulation on topographic maps"
+    "title": "Solaria Scope",
+    "description": "Interactive 3D Sun, Wind & Tide Simulation on Topographic Maps"
+  },
+  "sidebar": {
+    "sunTab": "Sun",
+    "windTab": "Wind",
+    "tideTab": "Tides"
   },
   "header": {
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
     "language": "Language",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "fullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "collapsePanel": "Collapse panel",
+    "expandPanel": "Expand panel"
   },
   "search": {
     "placeholder": "Search location...",
     "recentSearches": "Recent Searches",
     "quickLocations": "Popular Locations",
     "noResults": "No results found"
+  },
+  "locations": {
+    "bangkok": "Bangkok",
+    "chiangMai": "Chiang Mai",
+    "phuket": "Phuket",
+    "pattaya": "Pattaya",
+    "khonKaen": "Khon Kaen",
+    "hatYai": "Hat Yai"
   },
   "date": {
     "title": "Date",
@@ -28,13 +45,6 @@
     "sunrise": "Sunrise",
     "sunset": "Sunset"
   },
-  "playback": {
-    "play": "Play",
-    "pause": "Pause",
-    "speed": "Speed",
-    "stepForward": "Forward 15 min",
-    "stepBackward": "Back 15 min"
-  },
   "sun": {
     "title": "Sun Info",
     "sunrise": "Sunrise",
@@ -43,6 +53,7 @@
     "altitude": "Altitude",
     "azimuth": "Azimuth",
     "dayLength": "Day Length",
+    "dayLengthFormat": "{hours}h {minutes}m",
     "goldenHour": "Golden Hour"
   },
   "weather": {
@@ -50,13 +61,56 @@
     "avgTemp": "Avg Temperature",
     "maxTemp": "Max",
     "minTemp": "Min",
+    "tempRange": "{max}° / {min}°",
     "wind": "Wind",
     "windSpeed": "Wind Speed",
     "windDirection": "Wind Direction",
     "humidity": "Humidity",
     "monthlyAverage": "Monthly Average",
     "dominantWind": "Dominant Wind",
-    "windRose": "Wind Rose"
+    "windRose": "Wind Rose",
+    "kmh": "km/h",
+    "celsius": "°C",
+    "flowHint": "Air flows this way",
+    "windClearer": "Make clearer",
+    "windSofter": "Make quieter"
+  },
+  "tides": {
+    "title": "Tides & Marine",
+    "currentLevel": "Current Level",
+    "highTide": "High Tide",
+    "lowTide": "Low Tide",
+    "nextHighTide": "Next High",
+    "nextLowTide": "Next Low",
+    "rising": "Rising",
+    "falling": "Falling",
+    "tideChart": "24-Hour Tide Level",
+    "waveHeight": "Wave Height",
+    "seaTemp": "Sea Temp",
+    "currentSpeed": "Current",
+    "meters": "m",
+    "moonPhase": "Moon & Tidal Cycle",
+    "illumination": "Illumination",
+    "moonrise": "Moonrise",
+    "moonset": "Moonset",
+    "springTide": "Spring Tide",
+    "neapTide": "Neap Tide",
+    "moderateTide": "Moderate Tide",
+    "springTideDesc": "New / Full Moon: Maximum tidal range",
+    "neapTideDesc": "Quarter Moon: Minimum tidal range",
+    "moderateTideDesc": "Normal tidal variation",
+    "inlandNotice": "Inland location: Tide level predictions are available for coastal and marine areas. Astronomical moon data is shown below.",
+    "loading": "Loading marine data...",
+    "phases": {
+      "newMoon": "New Moon",
+      "waxingCrescent": "Waxing Crescent",
+      "firstQuarter": "First Quarter",
+      "waxingGibbous": "Waxing Gibbous",
+      "fullMoon": "Full Moon",
+      "waningGibbous": "Waning Gibbous",
+      "lastQuarter": "Last Quarter",
+      "waningCrescent": "Waning Crescent"
+    }
   },
   "months": {
     "jan": "Jan",
@@ -79,9 +133,20 @@
     "bookmark": "Save Bookmark",
     "linkCopied": "Link copied to clipboard!",
     "screenshotSaved": "Screenshot saved!",
-    "bookmarkSaved": "Location bookmarked!"
+    "bookmarkSaved": "Location bookmarked!",
+    "screenshotFailed": "Could not save screenshot"
   },
   "directions": {
+    "N": "North",
+    "NE": "Northeast",
+    "E": "East",
+    "SE": "Southeast",
+    "S": "South",
+    "SW": "Southwest",
+    "W": "West",
+    "NW": "Northwest"
+  },
+  "directionsShort": {
     "N": "N",
     "NE": "NE",
     "E": "E",
@@ -91,8 +156,16 @@
     "W": "W",
     "NW": "NW"
   },
+  "map": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetBearing": "Drag to rotate map, click to reset north",
+    "findMyLocation": "Find my location",
+    "locationNotAvailable": "Location not available"
+  },
   "loading": {
     "map": "Loading map...",
-    "weather": "Loading weather data..."
+    "weather": "Loading weather data...",
+    "tides": "Loading marine data..."
   }
 }
