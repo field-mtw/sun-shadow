@@ -3,13 +3,27 @@ import { getSunPosition } from './sun-engine';
 
 const SHADOW_SOURCE_ID = 'solaria-building-shadows-source';
 const SHADOW_LAYER_ID = 'solaria-building-shadows-layer';
+const MIN_SHADOW_ZOOM = 13.5;
+const MAX_BUILDINGS_TO_SHADOW = 300;
+
+interface CachedBuilding {
+  rings: GeoJSON.Position[][];
+  height: number;
+}
 
 export class ShadowManager {
   private map: MapLibreMap | null = null;
   private datetime: Date = new Date();
   private rafId = 0;
   private isMapLoaded = false;
-  private boundMoveHandler = () => this.scheduleUpdate();
+  private cachedBuildings: CachedBuilding[] = [];
+  private lastQueriedZoom = 0;
+  private isUpdating = false;
+
+  private boundMoveEndHandler = () => {
+    this.refreshBuildingCache();
+    this.scheduleUpdate();
+  };
 
   public initialize(map: MapLibreMap, datetime: Date): void {
     this.destroy();
@@ -27,9 +41,8 @@ export class ShadowManager {
     if (!this.map) return;
     this.isMapLoaded = true;
     this.setupShadowLayer();
-    this.map.on('move', this.boundMoveHandler);
-    this.map.on('zoom', this.boundMoveHandler);
-    this.map.on('idle', this.boundMoveHandler);
+    this.map.on('moveend', this.boundMoveEndHandler);
+    this.refreshBuildingCache();
     this.update();
   }
 
@@ -45,12 +58,15 @@ export class ShadowManager {
     }
 
     if (!map.getLayer(SHADOW_LAYER_ID)) {
-      // Find first building/extrusion or symbol layer to place shadows beneath buildings
       const layers = map.getStyle().layers || [];
       let beforeLayerId: string | undefined;
 
       for (const layer of layers) {
-        if (layer.type === 'fill-extrusion' || (layer.type === 'fill' && layer.id.includes('building'))) {
+        if (
+          layer.type === 'fill-extrusion' ||
+          (layer.type === 'fill' && layer.id.toLowerCase().includes('building')) ||
+          layer.type === 'symbol'
+        ) {
           beforeLayerId = layer.id;
           break;
         }
@@ -72,6 +88,54 @@ export class ShadowManager {
     }
   }
 
+  private refreshBuildingCache(): void {
+    const map = this.map;
+    if (!map || !this.isMapLoaded) return;
+
+    const zoom = map.getZoom();
+    this.lastQueriedZoom = zoom;
+
+    if (zoom < MIN_SHADOW_ZOOM) {
+      this.cachedBuildings = [];
+      return;
+    }
+
+    try {
+      const rendered = map.queryRenderedFeatures({
+        filter: ['any', ['has', 'height'], ['has', 'render_height'], ['has', 'building']],
+      });
+
+      const list: CachedBuilding[] = [];
+      const seen = new Set<string | number>();
+
+      for (const f of rendered) {
+        if (list.length >= MAX_BUILDINGS_TO_SHADOW) break;
+        if (!f.geometry || (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon')) continue;
+
+        const coords = f.geometry.coordinates;
+        const id = f.id ?? (f.properties?.name || JSON.stringify(coords[0]?.[0]));
+        if (id && seen.has(id)) continue;
+        if (id) seen.add(id);
+
+        const props = f.properties || {};
+        const heightMeters: number =
+          Number(props.render_height || props.height || (props.levels ? Number(props.levels) * 3.2 : 9)) || 9;
+
+        if (f.geometry.type === 'Polygon') {
+          list.push({ rings: coords as GeoJSON.Position[][], height: heightMeters });
+        } else if (f.geometry.type === 'MultiPolygon') {
+          for (const polyCoords of coords) {
+            list.push({ rings: polyCoords as GeoJSON.Position[][], height: heightMeters });
+          }
+        }
+      }
+
+      this.cachedBuildings = list;
+    } catch {
+      this.cachedBuildings = [];
+    }
+  }
+
   public updateDateTime(date: Date): void {
     this.datetime = date;
     this.scheduleUpdate();
@@ -88,21 +152,26 @@ export class ShadowManager {
 
   private update(): void {
     const map = this.map;
-    if (!map || !this.isMapLoaded) return;
+    if (!map || !this.isMapLoaded || this.isUpdating) return;
+    this.isUpdating = true;
 
-    const center = map.getCenter();
-    const sunPos = getSunPosition(this.datetime, center.lat, center.lng);
-    const altitude = sunPos.altitude;
-    const isNight = altitude <= 0.01;
+    try {
+      const center = map.getCenter();
+      const sunPos = getSunPosition(this.datetime, center.lat, center.lng);
+      const altitude = sunPos.altitude;
+      const isNight = altitude <= 0.01;
 
-    // 1. Update Directional 3D Light
-    this.updateMapLighting(sunPos.compassAzimuthDeg, sunPos.altitudeDeg, isNight);
+      // 1. Update Directional 3D Lighting
+      this.updateMapLighting(sunPos.compassAzimuthDeg, sunPos.altitudeDeg, isNight);
 
-    // 2. Update Terrain Hillshade Direction
-    this.updateHillshade(sunPos.compassAzimuthDeg, isNight);
+      // 2. Update Terrain Hillshade
+      this.updateHillshade(sunPos.compassAzimuthDeg, isNight);
 
-    // 3. Update Building Shadow Polygons
-    this.updateBuildingShadows(center.lat, sunPos.azimuth, altitude, isNight);
+      // 3. Update Building Shadows from cache
+      this.updateBuildingShadows(center.lat, sunPos.azimuth, altitude, isNight);
+    } finally {
+      this.isUpdating = false;
+    }
   }
 
   private updateMapLighting(azimuthDeg: number, altitudeDeg: number, isNight: boolean): void {
@@ -117,7 +186,7 @@ export class ShadowManager {
         position: [1.5, azimuthDeg, Math.max(0, 90 - altitudeDeg)],
       });
     } catch {
-      // Light might not be supported in some basic styles
+      // Ignore if not supported in custom style
     }
   }
 
@@ -135,7 +204,7 @@ export class ShadowManager {
         }
       }
     } catch {
-      // Hillshade layers may vary by style
+      // Ignore
     }
   }
 
@@ -151,20 +220,18 @@ export class ShadowManager {
     const source = map.getSource(SHADOW_SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
 
-    if (isNight) {
+    const zoom = map.getZoom();
+    if (isNight || zoom < MIN_SHADOW_ZOOM || this.cachedBuildings.length === 0) {
       source.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
 
-    // Set shadow opacity based on sun altitude (crisp at day, softer at low angles)
     const opacity = Math.min(0.52, Math.max(0.12, Math.sin(sunAltitudeRad) * 0.55));
     map.setPaintProperty(SHADOW_LAYER_ID, 'fill-opacity', opacity);
 
-    // Minimum altitude to prevent infinite shadow length on horizon
     const effectiveAltitude = Math.max(0.06, sunAltitudeRad);
     const shadowDistRatio = 1 / Math.tan(effectiveAltitude);
 
-    // Shadow extends in opposite direction of sun (azimuth + PI)
     const shadowDir = sunAzimuthRad + Math.PI;
     const latRad = (centerLat * Math.PI) / 180;
     const metersPerDegreeLat = 111320;
@@ -173,64 +240,26 @@ export class ShadowManager {
     const sinDir = Math.sin(shadowDir);
     const cosDir = Math.cos(shadowDir);
 
-    // Query visible building features in the viewport
-    let features: GeoJSON.Feature[] = [];
-    try {
-      const rendered = map.queryRenderedFeatures({
-        filter: ['any', ['has', 'height'], ['has', 'render_height'], ['has', 'building']],
-      });
+    const shadowFeatures: GeoJSON.Feature[] = [];
 
-      const shadowFeatures: GeoJSON.Feature[] = [];
-      const seen = new Set<string | number>();
+    for (const b of this.cachedBuildings) {
+      const maxCast = Math.min(b.height * shadowDistRatio, 500);
+      const dLng = (maxCast * sinDir) / metersPerDegreeLng;
+      const dLat = (maxCast * cosDir) / metersPerDegreeLat;
 
-      for (const f of rendered) {
-        if (!f.geometry || (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon')) {
-          continue;
-        }
-
-        const id = f.id ?? (f.properties?.name || JSON.stringify(f.geometry.coordinates[0]?.[0]));
-        if (id && seen.has(id)) continue;
-        if (id) seen.add(id);
-
-        const props = f.properties || {};
-        const heightMeters: number =
-          Number(props.render_height || props.height || (props.levels ? Number(props.levels) * 3.2 : 8)) || 8;
-
-        const maxCast = Math.min(heightMeters * shadowDistRatio, 600); // clamp max shadow length
-        const dLng = (maxCast * sinDir) / metersPerDegreeLng;
-        const dLat = (maxCast * cosDir) / metersPerDegreeLat;
-
-        if (f.geometry.type === 'Polygon') {
-          const shadowPolys = this.projectPolygonShadow(f.geometry.coordinates, dLng, dLat);
-          for (const poly of shadowPolys) {
-            shadowFeatures.push({
-              type: 'Feature',
-              properties: {},
-              geometry: { type: 'Polygon', coordinates: poly },
-            });
-          }
-        } else if (f.geometry.type === 'MultiPolygon') {
-          for (const polyCoords of f.geometry.coordinates) {
-            const shadowPolys = this.projectPolygonShadow(polyCoords, dLng, dLat);
-            for (const poly of shadowPolys) {
-              shadowFeatures.push({
-                type: 'Feature',
-                properties: {},
-                geometry: { type: 'Polygon', coordinates: poly },
-              });
-            }
-          }
-        }
+      const shadowPolys = this.projectPolygonShadow(b.rings, dLng, dLat);
+      for (const poly of shadowPolys) {
+        shadowFeatures.push({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Polygon', coordinates: poly },
+        });
       }
-
-      features = shadowFeatures;
-    } catch {
-      features = [];
     }
 
     source.setData({
       type: 'FeatureCollection',
-      features,
+      features: shadowFeatures,
     });
   }
 
@@ -267,9 +296,7 @@ export class ShadowManager {
       this.rafId = 0;
     }
     if (this.map) {
-      this.map.off('move', this.boundMoveHandler);
-      this.map.off('zoom', this.boundMoveHandler);
-      this.map.off('idle', this.boundMoveHandler);
+      this.map.off('moveend', this.boundMoveEndHandler);
       try {
         if (this.map.getLayer(SHADOW_LAYER_ID)) {
           this.map.removeLayer(SHADOW_LAYER_ID);
@@ -278,10 +305,11 @@ export class ShadowManager {
           this.map.removeSource(SHADOW_SOURCE_ID);
         }
       } catch {
-        // Map may already be unmounting
+        // Ignore unmount error
       }
     }
     this.map = null;
+    this.cachedBuildings = [];
     this.isMapLoaded = false;
   }
 }
