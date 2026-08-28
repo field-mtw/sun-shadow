@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "SunShadow",
+    "description": "การจำลองเงาแสงอาทิตย์บนแผนที่ภูมิประเทศ"
+  },
+  "header": {
+    "darkMode": "โหมดมืด",
+    "lightMode": "โหมดสว่าง",
+    "language": "ภาษา"
+  },
+  "search": {
+    "placeholder": "ค้นหาสถานที่...",
+    "recentSearches": "ประวัติการค้นหา",
+    "quickLocations": "สถานที่ยอดนิยม",
+    "noResults": "ไม่พบผลการค้นหา"
+  },
+  "date": {
+    "title": "วันที่",
+    "today": "วันนี้",
+    "tomorrow": "พรุ่งนี้",
+    "summerSolstice": "ครีษมายัน",
+    "winterSolstice": "เหมายัน"
+  },
+  "time": {
+    "title": "ช่วงเวลาของวัน",
+    "sunrise": "พระอาทิตย์ขึ้น",
+    "sunset": "พระอาทิตย์ตก"
+  },
+  "playback": {
+    "play": "เล่น",
+    "pause": "หยุดชั่วคราว",
+    "speed": "ความเร็ว",
+    "stepForward": "ไปข้างหน้า 15 นาที",
+    "stepBackward": "ย้อนกลับ 15 นาที"
+  },
+  "sun": {
+    "title": "ข้อมูลดวงอาทิตย์",
+    "sunrise": "พระอาทิตย์ขึ้น",
+    "sunset": "พระอาทิตย์ตก",
+    "solarNoon": "สุริยเที่ยงวัน",
+    "altitude": "มุมเงย",
+    "azimuth": "มุมทิศ",
+    "dayLength": "ระยะเวลากลางวัน",
+    "goldenHour": "ช่วงเวลาแสงสีทอง"
+  },
+  "weather": {
+    "title": "สภาพอากาศและภูมิอากาศ",
+    "avgTemp": "อุณหภูมิเฉลี่ย",
+    "maxTemp": "สูงสุด",
+    "minTemp": "ต่ำสุด",
+    "wind": "ลม",
+    "windSpeed": "ความเร็วลม",
+    "windDirection": "ทิศทางลม",
+    "humidity": "ความชื้น",
+    "monthlyAverage": "ค่าเฉลี่ยรายเดือน",
+    "dominantWind": "ทิศทางลมหลัก",
+    "windRose": "แผนภูมิลม"
+  },
+  "months": {
+    "jan": "ม.ค.",
+    "feb": "ก.พ.",
+    "mar": "มี.ค.",
+    "apr": "เม.ย.",
+    "may": "พ.ค.",
+    "jun": "มิ.ย.",
+    "jul": "ก.ค.",
+    "aug": "ส.ค.",
+    "sep": "ก.ย.",
+    "oct": "ต.ค.",
+    "nov": "พ.ย.",
+    "dec": "ธ.ค."
+  },
+  "export": {
+    "title": "ส่งออก",
+    "screenshot": "บันทึกภาพหน้าจอ",
+    "copyLink": "คัดลอกลิงก์แชร์",
+    "bookmark": "บันทึกบุ๊กมาร์ก",
+    "linkCopied": "คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว!",
+    "screenshotSaved": "บันทึกภาพหน้าจอแล้ว!",
+    "bookmarkSaved": "บันทึกสถานที่แล้ว!"
+  },
+  "directions": {
+    "N": "N",
+    "NE": "NE",
+    "E": "E",
+    "SE": "SE",
+    "S": "S",
+    "SW": "SW",
+    "W": "W",
+    "NW": "NW"
+  },
+  "loading": {
+    "map": "กำลังโหลดแผนที่...",
+    "weather": "กำลังโหลดข้อมูลสภาพอากาศ..."
+  }
+}

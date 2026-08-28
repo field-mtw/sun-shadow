@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "SunShadow",
+    "description": "Sun shadow simulation on topographic maps"
+  },
+  "header": {
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "language": "Language"
+  },
+  "search": {
+    "placeholder": "Search location...",
+    "recentSearches": "Recent Searches",
+    "quickLocations": "Popular Locations",
+    "noResults": "No results found"
+  },
+  "date": {
+    "title": "Date",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "summerSolstice": "Summer Solstice",
+    "winterSolstice": "Winter Solstice"
+  },
+  "time": {
+    "title": "Time of Day",
+    "sunrise": "Sunrise",
+    "sunset": "Sunset"
+  },
+  "playback": {
+    "play": "Play",
+    "pause": "Pause",
+    "speed": "Speed",
+    "stepForward": "Forward 15 min",
+    "stepBackward": "Back 15 min"
+  },
+  "sun": {
+    "title": "Sun Info",
+    "sunrise": "Sunrise",
+    "sunset": "Sunset",
+    "solarNoon": "Solar Noon",
+    "altitude": "Altitude",
+    "azimuth": "Azimuth",
+    "dayLength": "Day Length",
+    "goldenHour": "Golden Hour"
+  },
+  "weather": {
+    "title": "Weather & Climate",
+    "avgTemp": "Avg Temperature",
+    "maxTemp": "Max",
+    "minTemp": "Min",
+    "wind": "Wind",
+    "windSpeed": "Wind Speed",
+    "windDirection": "Wind Direction",
+    "humidity": "Humidity",
+    "monthlyAverage": "Monthly Average",
+    "dominantWind": "Dominant Wind",
+    "windRose": "Wind Rose"
+  },
+  "months": {
+    "jan": "Jan",
+    "feb": "Feb",
+    "mar": "Mar",
+    "apr": "Apr",
+    "may": "May",
+    "jun": "Jun",
+    "jul": "Jul",
+    "aug": "Aug",
+    "sep": "Sep",
+    "oct": "Oct",
+    "nov": "Nov",
+    "dec": "Dec"
+  },
+  "export": {
+    "title": "Export",
+    "screenshot": "Save Screenshot",
+    "copyLink": "Copy Share Link",
+    "bookmark": "Save Bookmark",
+    "linkCopied": "Link copied to clipboard!",
+    "screenshotSaved": "Screenshot saved!",
+    "bookmarkSaved": "Location bookmarked!"
+  },
+  "directions": {
+    "N": "N",
+    "NE": "NE",
+    "E": "E",
+    "SE": "SE",
+    "S": "S",
+    "SW": "SW",
+    "W": "W",
+    "NW": "NW"
+  },
+  "loading": {
+    "map": "Loading map...",
+    "weather": "Loading weather data..."
+  }
+}
