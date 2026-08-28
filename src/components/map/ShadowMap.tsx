@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-// @ts-ignore
-import ShadeMap from 'mapbox-gl-shadow-simulator';
 
 interface ShadowMapProps {
   date: Date;
@@ -14,6 +12,7 @@ interface ShadowMapProps {
 
 export interface ShadowMapRef {
   getCanvas: () => HTMLCanvasElement | null;
+  flyTo: (lng: number, lat: number, zoom?: number) => void;
 }
 
 const combineDateAndTime = (date: Date, time: Date): Date => {
@@ -26,13 +25,48 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const shadeMapRef = useRef<any>(null);
+  const initializedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
-    getCanvas: () => mapRef.current?.getCanvas() || null
+    getCanvas: () => mapRef.current?.getCanvas() || null,
+    flyTo: (lng: number, lat: number, zoom: number = 14) => {
+      mapRef.current?.flyTo({ center: [lng, lat], zoom, duration: 1500 });
+    },
   }));
 
+  const initShadowSimulator = useCallback((map: maplibregl.Map) => {
+    const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      const ShadeMap = require('mapbox-gl-shadow-simulator').default || require('mapbox-gl-shadow-simulator');
+      
+      const shadeMap = new ShadeMap({
+        date: combineDateAndTime(date, time),
+        color: '#01112f',
+        opacity: 0.7,
+        apiKey: MAPTILER_KEY,
+        terrainSource: {
+          tileSize: 512,
+          maxZoom: 12,
+          getSourceUrl: ({ x, y, z }: { x: number; y: number; z: number }) =>
+            `https://api.maptiler.com/tiles/terrain-rgb-v2/${z}/${x}/${y}.png?key=${MAPTILER_KEY}`,
+          getElevation: ({ r, g, b, a }: { r: number; g: number; b: number; a: number }) =>
+            -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1),
+        },
+      }).addTo(map);
+
+      shadeMapRef.current = shadeMap;
+      console.log('[SunShadow] Shadow simulator initialized');
+    } catch (error) {
+      console.warn('[SunShadow] Shadow simulator failed to initialize:', error);
+      // Map still works without shadows — not a critical failure
+    }
+  }, [date, time]);
+
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return;
+    if (!mapContainer.current || initializedRef.current) return;
+    initializedRef.current = true;
 
     const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
 
@@ -45,46 +79,57 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
       canvasContextAttributes: { preserveDrawingBuffer: true },
     } as maplibregl.MapOptions);
 
+    mapRef.current = map;
+
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
     map.addControl(
       new maplibregl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: true
+        trackUserLocation: true,
       }),
       'top-right'
     );
 
+    // Mark map as ready as soon as tiles load — don't wait for shadow simulator
     map.on('load', () => {
-      const shadeMap = new ShadeMap({
-        date: combineDateAndTime(date, time),
-        color: '#01112f',
-        opacity: 0.7,
-        apiKey: MAPTILER_KEY,
-        terrainSource: {
-          tileSize: 512,
-          maxZoom: 12,
-          getSourceUrl: ({x, y, z}: {x: number; y: number; z: number}) => `https://api.maptiler.com/tiles/terrain-rgb-v2/${z}/${x}/${y}.png?key=${MAPTILER_KEY}`,
-          getElevation: ({r, g, b, a}: {r: number; g: number; b: number; a: number}) => -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1),
-        },
-      }).addTo(map);
-
-      shadeMapRef.current = shadeMap;
-      mapRef.current = map;
+      console.log('[SunShadow] Map loaded');
       onMapReady();
+      // Initialize shadow simulator after map is ready (non-blocking)
+      initShadowSimulator(map);
     });
 
+    // Fallback: if map doesn't fire 'load' within 10s, mark ready anyway
+    const fallbackTimer = setTimeout(() => {
+      if (!shadeMapRef.current) {
+        console.warn('[SunShadow] Map load timeout, marking ready anyway');
+        onMapReady();
+      }
+    }, 10000);
+
     return () => {
+      clearTimeout(fallbackTimer);
       if (shadeMapRef.current) {
-        shadeMapRef.current.remove();
+        try {
+          shadeMapRef.current.remove();
+        } catch (e) {
+          // ignore cleanup errors
+        }
       }
       map.remove();
+      mapRef.current = null;
+      initializedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update shadow when date/time changes
   useEffect(() => {
     if (shadeMapRef.current) {
-      shadeMapRef.current.setDate(combineDateAndTime(date, time));
+      try {
+        shadeMapRef.current.setDate(combineDateAndTime(date, time));
+      } catch (error) {
+        console.warn('[SunShadow] Failed to update shadow date:', error);
+      }
     }
   }, [date, time]);
 
