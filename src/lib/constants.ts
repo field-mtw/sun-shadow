@@ -20,13 +20,3 @@ export const OPEN_METEO_MARINE_URL = 'https://marine-api.open-meteo.com/v1/marin
 
 export const getMapTilerStyleUrl = (apiKey: string, style = 'outdoor-v2') =>
   `https://api.maptiler.com/maps/${style}/style.json?key=${apiKey}`;
-
-/** AWS Terrain Tiles (Terrarium encoding) — same DEM ShadeMap.app uses. */
-export const TERRARIUM_TERRAIN_SOURCE = {
-  maxZoom: 15,
-  tileSize: 256,
-  getSourceUrl: ({ x, y, z }: { x: number; y: number; z: number }) =>
-    `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`,
-  getElevation: ({ r, g, b }: { r: number; g: number; b: number; a?: number }) =>
-    r * 256 + g + b / 256 - 32768,
-};
