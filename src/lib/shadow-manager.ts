@@ -17,15 +17,22 @@ import {
 } from './constants';
 import { buildHeightGrid, downsampleGrid, type HeightGrid } from './terrarium';
 import { TERRAIN_UMBRA_ID, TerrainShadowLayer, castTerrainMask } from './terrain-shadow-layer';
+import {
+  loadCustomMassingState,
+  makeBuildingGeoKey,
+  resolveSmartBuildingHeight,
+} from './smart-height';
 
 const BUILDING_3D_ID = 'solaria-buildings-3d';
+const CUSTOM_BUILDINGS_SOURCE_ID = 'solaria-custom-buildings-source';
+const CUSTOM_BUILDINGS_LAYER_ID = 'solaria-custom-buildings-3d';
 const UMBRA_LAYER_ID = 'solaria-umbra';
 const NIGHT_WASH_SOURCE_ID = 'solaria-night-wash-source';
 const NIGHT_WASH_LAYER_ID = 'solaria-night-wash';
 const TERRARIUM_HILLSHADE_ID = 'solaria-terrarium-hillshade';
-const MIN_SHADOW_ZOOM = 13.2;
+const MIN_SHADOW_ZOOM = 13.0;
 const MIN_TERRAIN_SHADOW_ZOOM = 8;
-const MAX_BUILDINGS = 500;
+const MAX_BUILDINGS = 550;
 const MAX_SHADOW_M = 280;
 const MIN_SHADOW_M = 6;
 const GRID = 28;
@@ -52,23 +59,6 @@ function ringHitsView(ring: LngLat[], west: number, south: number, east: number,
     if (lng >= west && lng <= east && lat >= south && lat <= north) return true;
   }
   return false;
-}
-
-function numberProp(value: unknown): number {
-  const n = typeof value === 'string' ? Number.parseFloat(value) : Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-/** Footprint height in meters: measured height, else floors, else OpenMapTiles estimate. */
-function buildingHeight(props: GeoJSON.GeoJsonProperties | null): number {
-  const p = props ?? {};
-  const height = numberProp(p.height);
-  if (height > 1) return height;
-  const floors = numberProp(p.num_floors ?? p.levels ?? p['building:levels']);
-  if (floors > 0) return floors * METERS_PER_FLOOR;
-  const renderHeight = numberProp(p.render_height);
-  if (renderHeight > 1) return renderHeight;
-  return 10;
 }
 
 function sampleBuildings(found: BuildingFootprint[]): BuildingFootprint[] {
@@ -154,6 +144,12 @@ function compileProgram(gl: WebGL2RenderingContext): WebGLProgram | null {
   return program;
 }
 
+let scratchCap = 256;
+let scratchFx = new Float64Array(scratchCap);
+let scratchFy = new Float64Array(scratchCap);
+let scratchPx = new Float64Array(scratchCap);
+let scratchPy = new Float64Array(scratchCap);
+
 /**
  * Triangulate shadow polygon from footprint ring + projected ring.
  * Each triangle gets per-vertex fade: 0 = footprint (umbra core), 1 = projected tip (penumbra edge).
@@ -169,6 +165,14 @@ function pushShadowPoly(
 ): void {
   if (n < 3) return;
 
+  if (n > scratchCap) {
+    scratchCap = Math.max(n * 2, 512);
+    scratchFx = new Float64Array(scratchCap);
+    scratchFy = new Float64Array(scratchCap);
+    scratchPx = new Float64Array(scratchCap);
+    scratchPy = new Float64Array(scratchCap);
+  }
+
   // Compute mercator offset once from a reference point, apply to all vertices.
   // This avoids calling MercatorCoordinate.fromLngLat() twice per vertex.
   const refMerc = MercatorCoordinate.fromLngLat({ lng: ring[0][0], lat: ring[0][1] });
@@ -176,10 +180,10 @@ function pushShadowPoly(
   const dmx = refProjMerc.x - refMerc.x;
   const dmy = refProjMerc.y - refMerc.y;
 
-  const fx = new Float64Array(n);
-  const fy = new Float64Array(n);
-  const px = new Float64Array(n);
-  const py = new Float64Array(n);
+  const fx = scratchFx;
+  const fy = scratchFy;
+  const px = scratchPx;
+  const py = scratchPy;
   fx[0] = refMerc.x;
   fy[0] = refMerc.y;
   px[0] = refProjMerc.x;
@@ -317,6 +321,14 @@ export class ShadowManager {
   private demKey = '';
   private terrainGen = 0;
   private terrainDebounce = 0;
+  private lastBuildingColor = '';
+  private lastNightWarm: boolean | null = null;
+  private lastNightOpacity = -1;
+  private lastHillAz = -999;
+  private lastHillAlt = -999;
+  private lastHillPeriod = '';
+  private lastTerrainAz = -999;
+  private lastTerrainAlt = -999;
 
   public initialize(map: MapLibreMap, datetime: Date): void {
     this.destroy();
@@ -333,6 +345,7 @@ export class ShadowManager {
     this.setupOvertureBuildings();
     this.setupTerrarium();
     this.setupBuildings3D();
+    this.setupCustomBuildingsLayer();
     this.setupUmbraLayer();
     this.setupTerrainUmbraLayer();
     this.setupNightWash();
@@ -345,6 +358,13 @@ export class ShadowManager {
     this.needsRefresh = true;
   }
 
+  public refreshCustomMassing(): void {
+    if (!this.ready || !this.map) return;
+    this.refreshBuildings();
+    this.rebuildUmbra();
+    this.map.triggerRepaint();
+  }
+
   private markDirty = () => {
     this.needsRefresh = true;
   };
@@ -353,7 +373,8 @@ export class ShadowManager {
     if (!this.ready || !event.isSourceLoaded) return;
     if (
       event.sourceId !== this.buildingSource &&
-      event.sourceId !== this.fallbackBuildingSource
+      event.sourceId !== this.fallbackBuildingSource &&
+      event.sourceId !== OVERTURE_BUILDINGS_SOURCE_ID
     ) {
       return;
     }
@@ -408,16 +429,76 @@ export class ShadowManager {
 
   private setupOvertureBuildings(): void {
     const map = this.map;
-    if (!map || map.getSource(OVERTURE_BUILDINGS_SOURCE_ID)) return;
+    if (!map) return;
     try {
-      map.addSource(OVERTURE_BUILDINGS_SOURCE_ID, {
-        type: 'vector',
-        url: OVERTURE_BUILDINGS_PMTILES_URL,
-        minzoom: 12,
-        maxzoom: 15,
-      });
+      if (!map.getSource(OVERTURE_BUILDINGS_SOURCE_ID)) {
+        map.addSource(OVERTURE_BUILDINGS_SOURCE_ID, {
+          type: 'vector',
+          url: OVERTURE_BUILDINGS_PMTILES_URL,
+          minzoom: 12,
+          maxzoom: 15,
+        });
+      }
+      // Bind a 3D fill-extrusion layer to overture-buildings so MapLibre actively streams its tiles
+      const altId = `${BUILDING_3D_ID}-alt`;
+      if (!map.getLayer(altId)) {
+        const beforeId = (map.getStyle().layers ?? []).find((layer) => layer.type === 'symbol')?.id;
+        const overtureLayer = {
+          id: altId,
+          type: 'fill-extrusion' as const,
+          source: OVERTURE_BUILDINGS_SOURCE_ID,
+          'source-layer': OVERTURE_BUILDINGS_LAYER,
+          minzoom: 13,
+          paint: {
+            'fill-extrusion-color': '#cec8c0',
+            'fill-extrusion-height': [
+              'max',
+              ['coalesce', ['get', 'height'], ['*', ['coalesce', ['get', 'num_floors'], 0], METERS_PER_FLOOR], 10],
+              8,
+            ],
+            'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+            'fill-extrusion-opacity': 0.88,
+            'fill-extrusion-vertical-gradient': true,
+          },
+        };
+        if (beforeId) map.addLayer(overtureLayer as never, beforeId);
+        else map.addLayer(overtureLayer as never);
+      }
     } catch {
       // keep MapTiler buildings visible
+    }
+  }
+
+  private setupCustomBuildingsLayer(): void {
+    const map = this.map;
+    if (!map) return;
+    try {
+      if (!map.getSource(CUSTOM_BUILDINGS_SOURCE_ID)) {
+        map.addSource(CUSTOM_BUILDINGS_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
+      if (!map.getLayer(CUSTOM_BUILDINGS_LAYER_ID)) {
+        const beforeId = (map.getStyle().layers ?? []).find((layer) => layer.type === 'symbol')?.id;
+        const customLayer = {
+          id: CUSTOM_BUILDINGS_LAYER_ID,
+          type: 'fill-extrusion' as const,
+          source: CUSTOM_BUILDINGS_SOURCE_ID,
+          minzoom: 12,
+          paint: {
+            'fill-extrusion-color': '#f59e0b',
+            'fill-extrusion-height': ['coalesce', ['get', 'height'], 18],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 0.92,
+            'fill-extrusion-vertical-gradient': true,
+          },
+        };
+        if (beforeId) map.addLayer(customLayer as never, beforeId);
+        else map.addLayer(customLayer as never);
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -497,16 +578,17 @@ export class ShadowManager {
         // Height-based color: taller buildings get slightly lighter shade for depth
         'fill-extrusion-color': [
           'interpolate', ['linear'],
-          ['coalesce', ['get', 'render_height'], ['get', 'height'], 10],
+          ['coalesce', ['get', 'render_height'], ['get', 'height'], 12],
           0, '#b8b2aa',
           15, '#c4bdb5',
           40, '#d0c9c0',
           100, '#dbd4cb',
         ],
         'fill-extrusion-height': [
-          'max',
-          ['coalesce', ['get', 'render_height'], ['get', 'height'], 0],
-          8,
+          'case',
+          ['>', ['coalesce', ['get', 'render_height'], ['get', 'height'], 0], 6.6],
+          ['coalesce', ['get', 'render_height'], ['get', 'height'], 12],
+          11.5,
         ],
         'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
         'fill-extrusion-opacity': 0.94,
@@ -588,7 +670,7 @@ export class ShadowManager {
     if (!this.buildingSource) this.resolveBuildingSource();
 
     const queryLayers = (sourceId: string, layerNames: string[]) => {
-      if (!sourceId) return [] as ReturnType<MapLibreMap['querySourceFeatures']>;
+      if (!sourceId || !map.getSource(sourceId)) return [] as ReturnType<MapLibreMap['querySourceFeatures']>;
       for (const layerName of layerNames) {
         try {
           const next = map.querySourceFeatures(sourceId, { sourceLayer: layerName });
@@ -607,7 +689,9 @@ export class ShadowManager {
     ]);
 
     if (!features.length) {
-      const renderLayers = [...this.buildingLayerIds, BUILDING_3D_ID].filter((id) => map.getLayer(id));
+      const renderLayers = [...this.buildingLayerIds, BUILDING_3D_ID, `${BUILDING_3D_ID}-alt`].filter((id) =>
+        map.getLayer(id),
+      );
       if (renderLayers.length) {
         try {
           features = map.queryRenderedFeatures({ layers: renderLayers });
@@ -627,7 +711,13 @@ export class ShadowManager {
     const south = bounds.getSouth() - VIEW_PAD_DEG;
     const east = bounds.getEast() + VIEW_PAD_DEG;
     const north = bounds.getNorth() + VIEW_PAD_DEG;
-    const centerLng = map.getCenter().lng;
+    const center = map.getCenter();
+    const centerLng = center.lng;
+    const centerLat = center.lat;
+    const metersPerDegLat = 110540;
+    const metersPerDegLng = 111320 * Math.max(0.2, Math.cos((centerLat * Math.PI) / 180));
+
+    const customMassing = loadCustomMassingState();
     const seen = new Map<string, number>(); // key → index in found[]
     const found: BuildingFootprint[] = [];
 
@@ -635,19 +725,50 @@ export class ShadowManager {
       for (const feature of list) {
         const geometry = feature.geometry;
         if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue;
-        const height = buildingHeight(feature.properties);
         const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
         for (const poly of polys) {
           const ring = copyRing(poly[0] ?? [], centerLng);
           if (ring.length < 3) continue;
           if (!ringHitsView(ring, west, south, east, north)) continue;
-          // Use integer-rounded key to avoid expensive toFixed()
-          const kx = (ring[0][0] * 1e5) | 0;
-          const ky = (ring[0][1] * 1e5) | 0;
+
+          // Compute centroid & local metric ring for Smart Height Estimation
+          let sumLng = 0;
+          let sumLat = 0;
+          const metricRing: Array<[number, number]> = [];
+          const nPts =
+            ring.length > 3 &&
+            Math.abs(ring[0][0] - ring[ring.length - 1][0]) < 1e-7 &&
+            Math.abs(ring[0][1] - ring[ring.length - 1][1]) < 1e-7
+              ? ring.length - 1
+              : ring.length;
+          for (let i = 0; i < nPts; i++) {
+            const [lng, lat] = ring[i];
+            sumLng += lng;
+            sumLat += lat;
+            metricRing.push([
+              (lng - centerLng) * metersPerDegLng,
+              (centerLat - lat) * metersPerDegLat,
+            ]);
+          }
+          const cLng = sumLng / Math.max(1, nPts);
+          const cLat = sumLat / Math.max(1, nPts);
+          const geoKey = makeBuildingGeoKey(cLat, cLng);
+          const overrideH = customMassing.heightOverrides[geoKey];
+          const smart = resolveSmartBuildingHeight(
+            feature.properties,
+            metricRing,
+            cLat,
+            cLng,
+            overrideH,
+          );
+          const height = smart.height;
+
+          // Use integer-rounded key to deduplicate overlapping OSM + Overture polygons
+          const kx = (cLng * 50000) | 0;
+          const ky = (cLat * 50000) | 0;
           const key = `${kx},${ky}`;
           const existingIdx = seen.get(key);
           if (existingIdx !== undefined) {
-            // O(1) update via index instead of O(n) find()
             if (height > found[existingIdx].height) found[existingIdx].height = height;
             continue;
           }
@@ -659,6 +780,52 @@ export class ShadowManager {
 
     ingest(features);
     ingest(overtureFeatures);
+
+    // Append user-placed custom buildings within view & sync GeoJSON source on 2D map
+    const customFeatures: GeoJSON.Feature[] = [];
+    for (const cb of customMassing.customBuildings) {
+      const hw = cb.widthMeters / 2;
+      const hd = cb.depthMeters / 2;
+      const rad = (cb.rotationDeg * Math.PI) / 180;
+      const cosR = Math.cos(rad);
+      const sinR = Math.sin(rad);
+      const cornersLocal: Array<[number, number]> = [
+        [-hw, -hd],
+        [hw, -hd],
+        [hw, hd],
+        [-hw, hd],
+      ];
+      const ring: LngLat[] = [];
+      for (const [lx, lz] of cornersLocal) {
+        const rx = lx * cosR - lz * sinR;
+        const rz = lx * sinR + lz * cosR;
+        const lng = cb.lng + rx / metersPerDegLng;
+        const lat = cb.lat - rz / metersPerDegLat;
+        ring.push([lng, lat]);
+      }
+      ring.push([ring[0][0], ring[0][1]]);
+
+      customFeatures.push({
+        type: 'Feature',
+        properties: { id: cb.id, height: cb.heightMeters },
+        geometry: { type: 'Polygon', coordinates: [ring] },
+      });
+
+      if (ringHitsView(ring, west, south, east, north)) {
+        found.push({ ring, height: cb.heightMeters });
+      }
+    }
+
+    try {
+      const src = map.getSource(CUSTOM_BUILDINGS_SOURCE_ID) as
+        | { setData?: (d: GeoJSON.FeatureCollection) => void }
+        | undefined;
+      if (src?.setData) {
+        src.setData({ type: 'FeatureCollection', features: customFeatures });
+      }
+    } catch {
+      // ignore
+    }
 
     if (found.length === 0 && this.buildings.length > 0) return;
     this.buildings = sampleBuildings(found);
@@ -723,12 +890,22 @@ export class ShadowManager {
     this.rebuildUmbra();
     this.updateLighting();
     this.map?.triggerRepaint();
-    // Debounce terrain shadow — it's expensive and fine to lag 150ms behind the slider
-    if (this.terrainDebounce) cancelAnimationFrame(this.terrainDebounce);
-    this.terrainDebounce = requestAnimationFrame(() => {
-      this.terrainDebounce = 0;
-      void this.rebuildTerrainUmbra(true);
-    });
+    // Only schedule expensive 90,000-cell terrain shadow ray-marching if the sun angle shifted noticeably
+    if (this.map && this.map.getZoom() >= MIN_TERRAIN_SHADOW_ZOOM) {
+      const center = this.map.getCenter();
+      const sky = getSkyLighting(this.datetime, center.lat, center.lng);
+      const dAz = Math.abs(sky.cast.compassAzimuthDeg - this.lastTerrainAz);
+      const dAlt = Math.abs(sky.cast.altitudeDeg - this.lastTerrainAlt);
+      if (dAz >= 1.8 || dAlt >= 1.2) {
+        this.lastTerrainAz = sky.cast.compassAzimuthDeg;
+        this.lastTerrainAlt = sky.cast.altitudeDeg;
+        if (this.terrainDebounce) cancelAnimationFrame(this.terrainDebounce);
+        this.terrainDebounce = requestAnimationFrame(() => {
+          this.terrainDebounce = 0;
+          void this.rebuildTerrainUmbra(true);
+        });
+      }
+    }
   }
 
   private async rebuildTerrainUmbra(reuseGrid = false): Promise<void> {
@@ -799,9 +976,18 @@ export class ShadowManager {
     const map = this.map;
     if (!map || !map.getLayer(NIGHT_WASH_LAYER_ID)) return;
     const warm = sky.period === 'goldenHour' || sky.period === 'twilight';
+    const nextOpacity = Math.min(0.28, sky.nightAmount * 0.34);
+    if (
+      warm === this.lastNightWarm &&
+      Math.abs(nextOpacity - this.lastNightOpacity) < 0.004
+    ) {
+      return;
+    }
+    this.lastNightWarm = warm;
+    this.lastNightOpacity = nextOpacity;
     try {
       map.setPaintProperty(NIGHT_WASH_LAYER_ID, 'fill-color', warm ? '#2a1810' : '#0b1a2e');
-      map.setPaintProperty(NIGHT_WASH_LAYER_ID, 'fill-opacity', Math.min(0.28, sky.nightAmount * 0.34));
+      map.setPaintProperty(NIGHT_WASH_LAYER_ID, 'fill-opacity', nextOpacity);
     } catch {
       // ignore
     }
@@ -814,6 +1000,8 @@ export class ShadowManager {
       sky.period === 'night' || sky.period === 'moonlight' ? '#8b919c'
       : sky.period === 'twilight' || sky.period === 'goldenHour' ? '#c4b4a4'
       : '#d0cbc4';
+    if (color === this.lastBuildingColor) return;
+    this.lastBuildingColor = color;
     for (const id of [BUILDING_3D_ID, `${BUILDING_3D_ID}-alt`]) {
       if (!map.getLayer(id)) continue;
       try {
@@ -858,6 +1046,16 @@ export class ShadowManager {
     if (!map) return;
     const azimuth = sky.cast.kind === 'none' ? 335 : sky.cast.compassAzimuthDeg;
     const altitude = sky.cast.kind === 'none' ? 45 : Math.max(8, sky.cast.altitudeDeg);
+    if (
+      sky.period === this.lastHillPeriod &&
+      Math.abs(azimuth - this.lastHillAz) < 1.5 &&
+      Math.abs(altitude - this.lastHillAlt) < 1.0
+    ) {
+      return;
+    }
+    this.lastHillPeriod = sky.period;
+    this.lastHillAz = azimuth;
+    this.lastHillAlt = altitude;
     // Higher exaggeration for more visible terrain relief
     const exaggeration =
       sky.period === 'night' ? 0.10
@@ -868,14 +1066,9 @@ export class ShadowManager {
       if (layer.type !== 'hillshade') continue;
       if (layer.id === 'Hillshade') continue;
       try {
-        map.setPaintProperty(layer.id, 'hillshade-method', 'combined');
-        map.setPaintProperty(layer.id, 'hillshade-illumination-anchor', 'map');
         map.setPaintProperty(layer.id, 'hillshade-illumination-direction', [azimuth]);
         map.setPaintProperty(layer.id, 'hillshade-illumination-altitude', [altitude]);
         map.setPaintProperty(layer.id, 'hillshade-exaggeration', exaggeration);
-        map.setPaintProperty(layer.id, 'hillshade-shadow-color', '#010d24');
-        map.setPaintProperty(layer.id, 'hillshade-highlight-color', '#f8f3ec');
-        map.setPaintProperty(layer.id, 'hillshade-accent-color', '#6e685e');
       } catch {
         try {
           map.setPaintProperty(layer.id, 'hillshade-illumination-direction', azimuth);
@@ -909,6 +1102,8 @@ export class ShadowManager {
         if (this.map.getLayer(NIGHT_WASH_LAYER_ID)) this.map.removeLayer(NIGHT_WASH_LAYER_ID);
         if (this.map.getSource(NIGHT_WASH_SOURCE_ID)) this.map.removeSource(NIGHT_WASH_SOURCE_ID);
         if (this.map.getLayer(TERRARIUM_HILLSHADE_ID)) this.map.removeLayer(TERRARIUM_HILLSHADE_ID);
+        if (this.map.getLayer(CUSTOM_BUILDINGS_LAYER_ID)) this.map.removeLayer(CUSTOM_BUILDINGS_LAYER_ID);
+        if (this.map.getSource(CUSTOM_BUILDINGS_SOURCE_ID)) this.map.removeSource(CUSTOM_BUILDINGS_SOURCE_ID);
         if (this.map.getLayer(`${BUILDING_3D_ID}-alt`)) this.map.removeLayer(`${BUILDING_3D_ID}-alt`);
         if (this.map.getLayer(BUILDING_3D_ID)) this.map.removeLayer(BUILDING_3D_ID);
         if (this.map.getSource(OVERTURE_BUILDINGS_SOURCE_ID)) this.map.removeSource(OVERTURE_BUILDINGS_SOURCE_ID);

@@ -1,11 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Moon, Sunrise, Sunset } from 'lucide-react';
-import { compassFromDeg, formatTime } from '@/lib/sun-engine';
+import { compassFromDeg, formatTime, getSunPosition } from '@/lib/sun-engine';
 import { useSunPosition } from '@/hooks/useSunPosition';
 import StatTile from '@/components/ui/StatTile';
 import SunMark from '@/components/icons/SunMark';
+import SolarCompassDial from '@/components/info/SolarCompassDial';
 import { cn } from '@/lib/cn';
 
 interface SunInfoPanelProps {
@@ -26,12 +28,17 @@ export default function SunInfoPanel({ date, time, lat, lng }: SunInfoPanelProps
     ? t('dayLengthFormat', { hours, minutes })
     : '—';
 
+  const { sunriseAzimuthDeg, sunsetAzimuthDeg } = useMemo(() => ({
+    sunriseAzimuthDeg: getSunPosition(times.sunrise, lat, lng).compassAzimuthDeg,
+    sunsetAzimuthDeg: getSunPosition(times.sunset, lat, lng).compassAzimuthDeg,
+  }), [times.sunrise, times.sunset, lat, lng]);
+
   return (
     <div className="mb-2">
       {sky.period !== 'day' && (
         <div
           className={cn(
-            'mb-3 flex items-center gap-2 rounded-[var(--radius-chip)] px-3 py-2 text-xs font-medium',
+            'mb-2.5 flex items-center gap-2 rounded-[var(--radius-chip)] px-3 py-1.5 text-xs font-medium',
             sky.period === 'moonlight' || sky.period === 'night'
               ? 'bg-[var(--accent-tide-soft)] text-tide'
               : 'bg-[var(--accent-sun-soft)] text-sun-text',
@@ -45,6 +52,18 @@ export default function SunInfoPanel({ date, time, lat, lng }: SunInfoPanelProps
           {t(`period.${sky.period}`)}
         </div>
       )}
+
+      {/* Interactive Solar Azimuth & Shadow Vector Radar Dial */}
+      <SolarCompassDial
+        date={date}
+        lat={lat}
+        lng={lng}
+        azimuthDeg={position.compassAzimuthDeg}
+        altitudeDeg={position.altitudeDeg}
+        sunriseAzimuthDeg={sunriseAzimuthDeg}
+        sunsetAzimuthDeg={sunsetAzimuthDeg}
+      />
+
       <div className="grid grid-cols-2 gap-2">
         <StatTile
           label={t('sunrise')}

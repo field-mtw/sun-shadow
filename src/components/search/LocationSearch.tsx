@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn';
 
 interface LocationSearchProps {
   onSelect: (location: { lat: number; lng: number; name: string }) => void;
-  variant?: 'topbar' | 'panel';
+  variant?: 'topbar' | 'panel' | 'inline';
   showPresets?: boolean;
   hideField?: boolean;
 }
@@ -69,14 +69,16 @@ export default function LocationSearch({
     };
   }, [query, locale]);
 
+  const isCompact = variant === 'topbar' || variant === 'inline';
+
   const field = (
-    <div className={cn('relative', variant === 'topbar' ? 'flex h-full min-w-0 flex-1 items-center' : '')}>
+    <div className={cn('relative', isCompact ? 'flex h-full min-w-0 flex-1 items-center' : '')}>
       <Search
-        size={variant === 'topbar' ? 18 : 16}
-        strokeWidth={1.75}
+        size={isCompact ? 15 : 16}
+        strokeWidth={1.85}
         className={cn(
           'pointer-events-none shrink-0 text-fg-muted',
-          variant === 'topbar' ? 'mr-2.5' : 'absolute top-1/2 left-3 -translate-y-1/2',
+          isCompact ? 'mr-2' : 'absolute top-1/2 left-3 -translate-y-1/2',
         )}
       />
       <input
@@ -92,24 +94,24 @@ export default function LocationSearch({
         aria-controls={listId}
         aria-autocomplete="list"
         className={cn(
-          'min-w-0 flex-1 bg-transparent text-[15px] text-fg placeholder:text-fg-muted/80 focus-visible:outline-none',
-          variant === 'topbar'
-            ? 'h-full border-0 pr-8'
-            : 'h-10 w-full rounded-[var(--radius-chip)] border border-[var(--glass-border)] bg-[color-mix(in_oklab,var(--fg)_4%,transparent)] pr-9 pl-10',
+          'min-w-0 flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-muted/80 focus-visible:outline-none',
+          isCompact
+            ? 'h-full border-0 pr-6'
+            : 'h-10 w-full rounded-[var(--radius-chip)] border border-[var(--glass-border)] bg-[color-mix(in_oklab,var(--fg)_4%,transparent)] pr-9 pl-10 text-[14px]',
         )}
       />
       {loading && query.length >= 3 && (
         <LoaderCircle
-          size={16}
+          size={14}
           strokeWidth={1.75}
-          className="absolute top-1/2 right-3 -translate-y-1/2 animate-spin text-fg-muted"
+          className="absolute top-1/2 right-2 -translate-y-1/2 animate-spin text-fg-muted"
         />
       )}
 
       {query.length >= 3 && !loading && shown.length === 0 && (
         <GlassPanel
           elevation={2}
-          className="absolute z-[var(--z-dropdown)] mt-2 w-full p-3 text-sm text-fg-muted"
+          className="absolute top-full left-0 z-[var(--z-dropdown)] mt-2 min-w-[240px] p-3 text-xs text-fg-muted"
         >
           {t('noResults')}
         </GlassPanel>
@@ -119,14 +121,14 @@ export default function LocationSearch({
         <ul
           id={listId}
           role="listbox"
-          className="glass-panel glass-panel-strong absolute z-[var(--z-dropdown)] mt-2 max-h-60 w-full overflow-auto py-1"
+          className="glass-panel glass-panel-strong absolute top-full left-0 z-[var(--z-dropdown)] mt-2 max-h-60 min-w-[260px] w-full overflow-auto py-1"
         >
           {shown.map((result) => (
             <li
               key={`${result.lat},${result.lng},${result.name}`}
               role="option"
               aria-selected={false}
-              className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--glass-hover)]"
+              className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--glass-hover)]"
               onMouseDown={(event) => {
                 event.preventDefault();
                 onSelect(result);
@@ -144,14 +146,22 @@ export default function LocationSearch({
     </div>
   );
 
+  if (variant === 'inline') {
+    return (
+      <div className="relative flex h-8 w-44 items-center rounded-full border border-[var(--glass-border)] bg-[color-mix(in_oklab,var(--fg)_4%,transparent)] px-3 transition-all focus-within:w-60 focus-within:ring-1 focus-within:ring-[var(--focus-ring)] lg:w-56 lg:focus-within:w-72">
+        {field}
+      </div>
+    );
+  }
+
   if (variant === 'topbar') {
     return (
       <GlassPanel
         elevation={1}
         data-open={open && query.length >= 3 ? 'true' : undefined}
-        className="topbar-search pointer-events-auto absolute top-[calc(var(--hud-inset)+env(safe-area-inset-top,0px))] left-1/2 z-[var(--z-hud)] hidden h-12 w-[min(420px,calc(100vw-420px))] max-w-[420px] -translate-x-1/2 items-center px-4 md:flex focus-within:ring-2 focus-within:ring-[var(--focus-ring)]"
+        className="topbar-search pointer-events-auto absolute top-[calc(var(--hud-inset)+env(safe-area-inset-top,0px))] left-1/2 z-[var(--z-hud)] hidden h-11 w-[min(360px,calc(100vw-480px))] max-w-[360px] -translate-x-1/2 items-center px-3.5 md:flex focus-within:ring-2 focus-within:ring-[var(--focus-ring)]"
       >
-        <div className="min-w-0 flex-1 overflow-hidden">{field}</div>
+        <div className="min-w-0 flex-1">{field}</div>
       </GlassPanel>
     );
   }

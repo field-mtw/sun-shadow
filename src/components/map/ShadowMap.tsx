@@ -12,6 +12,12 @@ import { ShadowManager } from '@/lib/shadow-manager';
 import { registerPmtilesProtocol } from '@/lib/pmtiles-protocol';
 import { combineDateAndTime } from '@/lib/sun-engine';
 import { FullscreenControl } from '@/components/map/MapControls';
+import {
+  extractClayAreaSlice,
+  type ClayAreaSlice,
+  type StudioBoxSize,
+} from '@/lib/clay-extractor';
+import type { MapWind } from '@/lib/wind-vector';
 
 if (typeof window !== 'undefined') {
   // MapLibre v6 ships an ESM worker that imports maplibre-gl-shared.mjs by
@@ -39,6 +45,14 @@ export interface ShadowMapRef {
   project: (lng: number, lat: number) => { x: number; y: number } | null;
   getBounds: () => { west: number; south: number; east: number; north: number } | null;
   subscribeView: (cb: () => void) => () => void;
+  ensureBuildingZoom: () => void;
+  resize: () => void;
+  refreshCustomMassing: () => void;
+  extractAreaSlice: (
+    sizeMeters: StudioBoxSize,
+    date: Date,
+    wind?: MapWind | null,
+  ) => Promise<ClayAreaSlice | null>;
 }
 
 const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapReady, onLocationChange, enterLabel, exitLabel, mapLocale }, ref) => {
@@ -83,6 +97,28 @@ const ShadowMap = forwardRef<ShadowMapRef, ShadowMapProps>(({ date, time, onMapR
         map.off('move', cb);
         map.off('resize', cb);
       };
+    },
+    ensureBuildingZoom: () => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (map.getZoom() < 15.2) {
+        map.easeTo({ zoom: 15.6, duration: 750 });
+      }
+    },
+    resize: () => {
+      mapRef.current?.resize();
+    },
+    refreshCustomMassing: () => {
+      shadowManagerRef.current?.refreshCustomMassing();
+    },
+    extractAreaSlice: async (
+      sizeMeters: StudioBoxSize,
+      targetDate: Date,
+      wind?: MapWind | null,
+    ) => {
+      const map = mapRef.current;
+      if (!map) return null;
+      return extractClayAreaSlice(map, sizeMeters, targetDate, wind);
     },
   }));
 

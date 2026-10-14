@@ -131,10 +131,37 @@ body {
   box-shadow: var(--glass-highlight), var(--shadow-hud);
   border-radius: var(--radius-hud);
   color: var(--fg);
+  transition: border-color 360ms ease, box-shadow 360ms ease, background-color 360ms ease;
 }
 
 .glass-panel.glass-panel-strong {
   background: var(--glass-bg-strong);
+}
+
+/* Sky-Reactive Spatial Glass Ambient Glow */
+main[data-sky-period='goldenHour'] .glass-panel {
+  border-color: rgba(245, 158, 11, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(254, 243, 199, 0.55),
+    0 10px 36px rgba(217, 119, 6, 0.14),
+    var(--shadow-hud);
+}
+
+main[data-sky-period='twilight'] .glass-panel {
+  border-color: rgba(168, 85, 247, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(233, 213, 255, 0.35),
+    0 10px 36px rgba(126, 34, 206, 0.14),
+    var(--shadow-hud);
+}
+
+main[data-sky-period='night'] .glass-panel,
+main[data-sky-period='moonlight'] .glass-panel {
+  border-color: rgba(56, 189, 248, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(186, 230, 253, 0.22),
+    0 10px 36px rgba(2, 132, 199, 0.16),
+    var(--shadow-hud);
 }
 
 .maplibregl-map,
@@ -154,7 +181,7 @@ body {
 }
 
 .maplibregl-map .maplibregl-ctrl-top-right {
-  top: calc(var(--hud-inset) + env(safe-area-inset-top, 0px));
+  top: calc(var(--hud-inset) + 54px + env(safe-area-inset-top, 0px));
   right: var(--hud-inset);
 }
 
@@ -196,10 +223,10 @@ main[data-sheet='expanded'] .maplibregl-ctrl-top-right {
 .time-dock {
   position: absolute;
   z-index: var(--z-hud);
-  bottom: 16px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(32rem, calc(100% - 2 * max(var(--hud-left, 0px), 24px)));
+  width: min(40rem, calc(100% - 2 * max(var(--hud-left, 0px), 20px)));
   min-height: var(--dock-height);
   height: auto;
   overflow: visible;
